@@ -1,0 +1,10 @@
+# Minimal requirements for Inky Impression 4 Dashboard
+# Optimized for Raspberry Pi Zero 2 W
+
+requests>=2.25.0
+Pillow>=8.0.0
+
+# Note: The following are pre-installed on Raspberry Pi with Inky setup:
+# - inky (Pimoroni Inky library)
+# - gpiod, gpiodevice (GPIO libraries)
+# - xml.etree.ElementTree (Python standard library)

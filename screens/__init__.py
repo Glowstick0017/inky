@@ -1,0 +1,3 @@
+"""
+Screen module initialization
+"""
