@@ -280,6 +280,8 @@ class SystemScreen(BaseScreen):
         card_draw.rectangle([0, 0, width-1, height-1], outline=(80, 100, 140, 255), width=1)
         
         return card_overlay
+
+    def draw_metric_bar(self, draw, x, y, width, height, value, max_value, color):
         """Draw an enhanced horizontal progress bar with glow effects."""
         # Outer shadow/glow
         shadow_color = (color[0]//4, color[1]//4, color[2]//4)
@@ -324,16 +326,16 @@ class SystemScreen(BaseScreen):
             stats = self.get_system_stats()
             self.current_stats = stats
             
-            # Create enhanced background
-            display_image = self.create_system_background()
-            draw = ImageDraw.Draw(display_image)
-            
-            # Load fonts with better sizing using font manager
+            # Load fonts with better sizing using font manager FIRST
             font_title = font_manager.get_font('title', 24)
             font_large = font_manager.get_font('bold', 20)
             font_medium = font_manager.get_font('bold', 16)
             font_small = font_manager.get_font('regular', 13)
             font_tiny = font_manager.get_font('small', 11)
+            
+            # Create enhanced background
+            display_image = self.create_system_background()
+            draw = ImageDraw.Draw(display_image)
             
             # Modern header with glow effect
             title = f"SYSTEM MONITOR • {stats['hostname'].upper()}"

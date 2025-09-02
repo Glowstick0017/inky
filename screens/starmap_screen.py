@@ -397,15 +397,15 @@ class StarmapScreen(BaseScreen):
             star_data = self.fetch_current_astronomy_data()
             self.current_starmap = star_data
             
-            # Create night sky background
-            display_image = self.create_starmap_background()
-            draw = ImageDraw.Draw(display_image)
-            
-            # Load fonts using font manager
+            # Load fonts using font manager first (before image operations)
             font_title = font_manager.get_font('title', 24)
             font_large = font_manager.get_font('regular', 16)
             font_medium = font_manager.get_font('regular', 14)
             font_small = font_manager.get_font('small', 12)
+            
+            # Create night sky background
+            display_image = self.create_starmap_background()
+            draw = ImageDraw.Draw(display_image)
             
             # Draw title
             title = "NIGHT SKY CHART"

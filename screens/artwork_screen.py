@@ -435,82 +435,77 @@ class ArtworkScreen(BaseScreen):
             self.display_error_message("Artwork Error", str(e))
     
     def add_quote_overlay(self, artwork_image, quote_data):
-        """Add highly visible quote overlay with enhanced readability."""
-        # Create overlay for quote (bottom portion) with stronger background
+        """Add a small, elegant quote overlay in the bottom left corner."""
+        # Create overlay for quote - much smaller area in bottom left
         overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
         overlay_draw = ImageDraw.Draw(overlay)
         
-        # Create stronger gradient overlay for maximum text readability
-        for y in range(260, 400):  # Bottom 140 pixels for quote (more space)
-            progress = (y - 260) / 140
-            # Much stronger gradient for better text visibility
-            alpha = int(180 + (progress * 75))  # Range from 180 to 255 alpha
-            overlay_draw.rectangle([(0, y), (640, y+1)], fill=(0, 0, 0, alpha))
+        # Calculate quote box dimensions - smaller area in bottom left
+        quote_width = 280  # About 44% of screen width
+        quote_height = 100  # About 25% of screen height
+        quote_x = 20  # 20px from left edge
+        quote_y = 280  # Start at y=280 (leaves 120px at bottom)
         
-        # Add strong border at top of quote area with glow effect
-        for i in range(3):
-            alpha = 120 - (i * 30)
-            overlay_draw.rectangle([(0, 260 + i), (640, 262 + i)], fill=(255, 255, 255, alpha))
+        # Create rounded rectangle background with subtle transparency
+        for y in range(quote_y, quote_y + quote_height):
+            progress = (y - quote_y) / quote_height
+            # Gentle gradient for readability without being too dark
+            alpha = int(120 + (progress * 40))  # Range from 120 to 160 alpha
+            overlay_draw.rectangle([(quote_x, y), (quote_x + quote_width, y+1)], 
+                                 fill=(0, 0, 0, alpha))
+        
+        # Add subtle border for definition
+        overlay_draw.rectangle([quote_x, quote_y, quote_x + quote_width, quote_y + quote_height], 
+                             outline=(255, 255, 255, 80), width=1)
         
         # Composite the overlay onto the artwork
         display_image = Image.alpha_composite(artwork_image.convert('RGBA'), overlay)
         display_image = display_image.convert('RGB')
         
-        # Add quote text with maximum visibility
+        # Add quote text with good readability
         draw = ImageDraw.Draw(display_image)
         
-        # Use the font manager for better fonts
-        font_quote = font_manager.get_font('quote', 20)  # Larger quote text
-        font_author = font_manager.get_font('italic', 18)  # Larger author text
+        # Use readable font sizes for the smaller area
+        font_quote = font_manager.get_font('quote', 16)  # Smaller but readable
+        font_author = font_manager.get_font('italic', 14)  # Author text
         
-        # Wrap and draw quote text
+        # Wrap and draw quote text to fit in the smaller area
         quote_text = quote_data['text']
-        max_width = 560  # Slightly narrower for better readability
-        quote_lines = self.wrap_text_for_quote(quote_text, font_quote, max_width, 4)
+        max_width = quote_width - 20  # Leave 10px padding on each side
+        quote_lines = self.wrap_text_for_quote(quote_text, font_quote, max_width, 3)  # Max 3 lines
         
-        # Center the quote vertically in the overlay area
-        line_height = 26  # More line spacing
-        total_text_height = len(quote_lines) * line_height + 35  # Include author space
-        start_y = 270 + (130 - total_text_height) // 2
+        # Position text within the quote box
+        line_height = 20  # Comfortable line spacing
+        text_start_y = quote_y + 10  # 10px padding from top of box
         
-        # Draw quote text with maximum visibility techniques
+        # Draw quote text with good visibility
         for i, line in enumerate(quote_lines):
-            y = start_y + (i * line_height)
-            bbox = draw.textbbox((0, 0), line, font=font_quote)
-            text_width = bbox[2] - bbox[0]
-            x = (640 - text_width) // 2
+            y = text_start_y + (i * line_height)
+            x = quote_x + 10  # 10px padding from left
             
-            # Multiple shadow layers for extreme visibility
-            shadow_offsets = [(3, 3), (2, 2), (1, 1), (-1, -1), (-2, -2)]
-            for offset in shadow_offsets:
-                shadow_alpha = 150 if abs(offset[0]) <= 1 else 100
-                draw.text((x + offset[0], y + offset[1]), line, fill=(0, 0, 0), font=font_quote)
-            
-            # Outline effect for even better visibility
-            outline_offsets = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-            for offset in outline_offsets:
-                draw.text((x + offset[0], y + offset[1]), line, fill=(0, 0, 0), font=font_quote)
-            
-            # Main quote text in bright white
+            # Simple shadow for readability
+            draw.text((x + 1, y + 1), line, fill=(0, 0, 0), font=font_quote)
+            # Main quote text in white
             draw.text((x, y), line, fill=(255, 255, 255), font=font_quote)
         
-        # Draw author with enhanced visibility
+        # Draw author name
         author_text = f"— {quote_data['author']}"
-        author_y = start_y + len(quote_lines) * line_height + 20
+        author_y = text_start_y + len(quote_lines) * line_height + 8  # 8px gap after quote
+        author_x = quote_x + 10
+        
+        # Check if author fits, if not truncate
         bbox = draw.textbbox((0, 0), author_text, font=font_author)
         text_width = bbox[2] - bbox[0]
-        x = (640 - text_width) // 2
+        if text_width > max_width:
+            # Truncate author name if too long
+            author_name = quote_data['author']
+            if len(author_name) > 20:
+                author_name = author_name[:17] + "..."
+            author_text = f"— {author_name}"
         
-        # Author shadow and outline
-        for offset in shadow_offsets:
-            shadow_alpha = 150 if abs(offset[0]) <= 1 else 100
-            draw.text((x + offset[0], author_y + offset[1]), author_text, fill=(0, 0, 0), font=font_author)
-        
-        for offset in outline_offsets:
-            draw.text((x + offset[0], author_y + offset[1]), author_text, fill=(0, 0, 0), font=font_author)
-        
-        # Main author text in slightly dimmed white for elegance
-        draw.text((x, author_y), author_text, fill=(240, 240, 240), font=font_author)
+        # Author shadow and main text
+        draw.text((author_x + 1, author_y + 1), author_text, fill=(0, 0, 0), font=font_author)
+        draw.text((author_x, author_y), author_text, fill=(220, 220, 220), font=font_author)
         
         return display_image
     
@@ -677,7 +672,7 @@ class ArtworkScreen(BaseScreen):
         draw = ImageDraw.Draw(image)
         
         try:
-            font = ImageFont.load_default()
+            font = font_manager.get_font('regular', 16)
         except:
             font = None
             

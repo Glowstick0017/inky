@@ -620,16 +620,16 @@ class WeatherScreen(BaseScreen):
             current = weather_data["current"]
             weather_code = current["weathercode"]
             
-            # Create rich weather background
-            display_image, theme = self.create_weather_background(weather_code)
-            draw = ImageDraw.Draw(display_image)
-            
-            # Load enhanced fonts with larger sizes using font manager
+            # Load enhanced fonts with larger sizes using font manager FIRST
             font_header = font_manager.get_font('title', 32)   # Larger header
             font_temp = font_manager.get_font('bold', 56)      # Larger temp
             font_large = font_manager.get_font('bold', 22)     # Larger labels
             font_medium = font_manager.get_font('regular', 18) # Larger medium
             font_small = font_manager.get_font('small', 15)    # Larger small
+            
+            # Create rich weather background
+            display_image, theme = self.create_weather_background(weather_code)
+            draw = ImageDraw.Draw(display_image)
             
             # Header with location
             header_text = f"WEATHER - {self.city_name.upper()}"
