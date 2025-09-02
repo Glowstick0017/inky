@@ -18,7 +18,7 @@ LOCATION_CITY = "Phoenix, AZ"  # Your city name
 ARTWORK_UPDATE_INTERVAL = 300    # 5 minutes - Artwork with quotes
 WEATHER_UPDATE_INTERVAL = 900    # 15 minutes - Weather forecast
 STARMAP_UPDATE_INTERVAL = 3600   # 1 hour - Star chart
-SYSTEM_UPDATE_INTERVAL = 60      # 1 minute - System monitoring
+SYSTEM_UPDATE_INTERVAL = 300     # 5 minutes - System monitoring
 
 # Display Configuration
 SCREEN_WIDTH = 640

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 from .base_screen import BaseScreen
 import config
+from font_manager import font_manager
 
 class SystemScreen(BaseScreen):
     def __init__(self):
@@ -195,39 +196,127 @@ class SystemScreen(BaseScreen):
             return f"{minutes}m"
     
     def create_system_background(self):
-        """Create a tech-themed background for system stats."""
-        image = Image.new("RGB", (640, 400), (20, 25, 35))
+        """Create a modern tech-themed background with enhanced visual depth."""
+        image = Image.new("RGB", (640, 400), (15, 20, 30))
         draw = ImageDraw.Draw(image)
         
-        # Create subtle gradient
+        # Create sophisticated multi-layer gradient
         for y in range(400):
             ratio = y / 400
-            r = int(20 + (10 * ratio))
-            g = int(25 + (15 * ratio))
-            b = int(35 + (20 * ratio))
+            # Deep space blue to tech cyan gradient
+            r = int(15 + (25 * ratio))
+            g = int(20 + (35 * ratio))  
+            b = int(30 + (50 * ratio))
             draw.line([(0, y), (640, y)], fill=(r, g, b))
         
-        # Add grid pattern for tech look
-        grid_color = (40, 50, 70)
-        for x in range(0, 640, 40):
-            draw.line([(x, 0), (x, 400)], fill=grid_color, width=1)
-        for y in range(0, 400, 40):
-            draw.line([(0, y), (640, y)], fill=grid_color, width=1)
+        # Add subtle diagonal tech pattern
+        pattern_color = (35, 45, 65, 100)
+        overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
+        pattern_draw = ImageDraw.Draw(overlay)
+        
+        # Diagonal lines pattern
+        for x in range(-400, 640, 30):
+            pattern_draw.line([(x, 0), (x + 400, 400)], fill=pattern_color, width=1)
+        
+        # Add circuit-board style connection points
+        for i in range(15):
+            x = (i * 45) + 20
+            y = 30 + (i % 3) * 120
+            pattern_draw.ellipse([x-2, y-2, x+2, y+2], fill=(60, 120, 180, 150))
+            # Connection lines
+            if i < 14:
+                next_x = ((i+1) * 45) + 20
+                next_y = 30 + ((i+1) % 3) * 120
+                pattern_draw.line([(x, y), (next_x, next_y)], fill=(40, 80, 120, 80), width=1)
+        
+        # Composite the pattern overlay
+        image = Image.alpha_composite(image.convert('RGBA'), overlay).convert('RGB')
         
         return image
     
-    def draw_metric_bar(self, draw, x, y, width, height, value, max_value, color):
-        """Draw a horizontal progress bar for metrics."""
-        # Background bar
-        draw.rectangle([x, y, x + width, y + height], fill=(60, 60, 80), outline=(100, 100, 120))
+    def draw_status_icon(self, draw, x, y, metric_type, value, thresholds):
+        """Draw a status icon based on metric value."""
+        color = self.get_metric_color(value, thresholds)
         
-        # Fill bar based on percentage
-        fill_width = int((value / max_value) * width)
-        if fill_width > 0:
-            draw.rectangle([x + 1, y + 1, x + fill_width - 1, y + height - 1], fill=color)
+        # Create a small circular indicator
+        radius = 6
+        
+        # Main indicator with glow effect
+        # Outer glow circles
+        for r in range(radius + 3, radius, -1):
+            alpha_factor = (radius + 3 - r) / 3
+            glow_color = (
+                int(color[0] * 0.3 * alpha_factor),
+                int(color[1] * 0.3 * alpha_factor),
+                int(color[2] * 0.3 * alpha_factor)
+            )
+            draw.ellipse([x - r, y - r, x + r, y + r], fill=glow_color)
+        
+        # Main indicator
+        draw.ellipse([x - radius, y - radius, x + radius, y + radius], 
+                    fill=color, outline=(255, 255, 255), width=1)
+        
+        # Inner highlight
+        highlight_color = (min(255, color[0] + 60), min(255, color[1] + 60), min(255, color[2] + 60))
+        draw.ellipse([x - radius + 2, y - radius + 2, x + radius - 2, y + radius - 2], 
+                    outline=highlight_color)
+
+    def draw_metric_card(self, draw, x, y, width, height, title, value, unit, percentage, color, detail_text=""):
+        """Draw a modern metric card with enhanced styling."""
+        # Card background with subtle gradient
+        card_overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        card_draw = ImageDraw.Draw(card_overlay)
+        
+        # Card background gradient
+        for i in range(height):
+            factor = i / height
+            bg_r = int(35 + (15 * factor))
+            bg_g = int(45 + (20 * factor))
+            bg_b = int(65 + (25 * factor))
+            alpha = 180
+            card_draw.line([(0, i), (width, i)], fill=(bg_r, bg_g, bg_b, alpha))
+        
+        # Card border
+        card_draw.rectangle([0, 0, width-1, height-1], outline=(80, 100, 140, 255), width=1)
+        
+        return card_overlay
+        """Draw an enhanced horizontal progress bar with glow effects."""
+        # Outer shadow/glow
+        shadow_color = (color[0]//4, color[1]//4, color[2]//4)
+        draw.rectangle([x-1, y-1, x + width + 1, y + height + 1], fill=shadow_color)
+        
+        # Background bar with gradient
+        draw.rectangle([x, y, x + width, y + height], fill=(25, 30, 40), outline=(60, 70, 90))
+        
+        # Inner gradient background
+        for i in range(height):
+            factor = i / height
+            bg_r = int(25 + (15 * factor))
+            bg_g = int(30 + (20 * factor))
+            bg_b = int(40 + (25 * factor))
+            draw.line([(x+1, y+i), (x + width-1, y+i)], fill=(bg_r, bg_g, bg_b))
+        
+        # Fill bar based on percentage with gradient
+        fill_width = int((value / max_value) * (width - 2))
+        if fill_width > 2:
+            for i in range(height - 2):
+                factor = i / (height - 2)
+                fill_r = int(color[0] * (0.8 + 0.4 * factor))
+                fill_g = int(color[1] * (0.8 + 0.4 * factor))
+                fill_b = int(color[2] * (0.8 + 0.4 * factor))
+                # Clamp values
+                fill_r = min(255, fill_r)
+                fill_g = min(255, fill_g)
+                fill_b = min(255, fill_b)
+                draw.line([(x + 1, y + 1 + i), (x + fill_width, y + 1 + i)], 
+                         fill=(fill_r, fill_g, fill_b))
+            
+            # Add highlight on top edge of fill
+            highlight_color = (min(255, color[0] + 40), min(255, color[1] + 40), min(255, color[2] + 40))
+            draw.line([(x + 1, y + 1), (x + fill_width, y + 1)], fill=highlight_color, width=1)
     
     def display(self):
-        """Display comprehensive system statistics."""
+        """Display comprehensive system statistics with modern card-based layout."""
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Updating System Dashboard...")
         
         try:
@@ -235,162 +324,228 @@ class SystemScreen(BaseScreen):
             stats = self.get_system_stats()
             self.current_stats = stats
             
-            # Create background
+            # Create enhanced background
             display_image = self.create_system_background()
             draw = ImageDraw.Draw(display_image)
             
-            # Load fonts
-            try:
-                font_title = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 22)
-                font_large = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 18)
-                font_medium = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 14)
-                font_small = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 12)
-            except:
-                try:
-                    font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 22)
-                    font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 18)
-                    font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-                    font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-                except:
-                    font_title = font_large = font_medium = font_small = ImageFont.load_default()
+            # Load fonts with better sizing using font manager
+            font_title = font_manager.get_font('title', 24)
+            font_large = font_manager.get_font('bold', 20)
+            font_medium = font_manager.get_font('bold', 16)
+            font_small = font_manager.get_font('regular', 13)
+            font_tiny = font_manager.get_font('small', 11)
             
-            # Title
-            title = f"SYSTEM DASHBOARD - {stats['hostname'].upper()}"
+            # Modern header with glow effect
+            title = f"SYSTEM MONITOR • {stats['hostname'].upper()}"
             if font_title:
                 bbox = draw.textbbox((0, 0), title, font=font_title)
                 title_width = bbox[2] - bbox[0]
                 title_x = (640 - title_width) // 2
-                draw.text((title_x + 1, 11), title, fill=(0, 0, 0), font=font_title)
-                draw.text((title_x, 10), title, fill=(100, 200, 255), font=font_title)
+                # Glow effect
+                for offset in [(2, 2), (1, 1), (-1, -1), (-2, -2)]:
+                    draw.text((title_x + offset[0], 12 + offset[1]), title, fill=(20, 40, 80), font=font_title)
+                # Main title
+                draw.text((title_x, 12), title, fill=(120, 200, 255), font=font_title)
             
-            # Current time and uptime
+            # Status bar with time and uptime
             current_time = datetime.now().strftime("%I:%M:%S %p")
             uptime_str = self.format_uptime(stats["uptime"])
-            time_text = f"Time: {current_time} | Uptime: {uptime_str}"
-            if font_medium:
-                bbox = draw.textbbox((0, 0), time_text, font=font_medium)
-                time_width = bbox[2] - bbox[0]
-                time_x = (640 - time_width) // 2
-                draw.text((time_x, 38), time_text, fill=(200, 200, 255), font=font_medium)
+            status_text = f"⏰ {current_time}  •  ⏱️ {uptime_str}"
+            if font_small:
+                bbox = draw.textbbox((0, 0), status_text, font=font_small)
+                status_width = bbox[2] - bbox[0]
+                status_x = (640 - status_width) // 2
+                draw.text((status_x, 45), status_text, fill=(180, 220, 255), font=font_small)
             
-            # CPU Section
-            y_pos = 70
+            # Card layout - 2x2 grid of main metrics
+            card_width = 290
+            card_height = 70
+            card_margin = 20
+            
+            # Row 1: CPU and Memory
+            y_start = 75
+            
+            # CPU Card
             cpu_color = self.get_metric_color(stats["cpu_percent"], self.cpu_thresholds)
+            cpu_card = self.draw_metric_card(draw, 25, y_start, card_width, card_height, 
+                                           "CPU", f"{stats['cpu_percent']:.1f}", "%", 
+                                           stats["cpu_percent"], cpu_color)
+            display_image = Image.alpha_composite(display_image.convert('RGBA'), cpu_card).convert('RGB')
             
-            if font_large:
-                cpu_text = f"CPU: {stats['cpu_percent']:.1f}%"
-                draw.text((21, y_pos + 1), cpu_text, fill=(0, 0, 0), font=font_large)
-                draw.text((20, y_pos), cpu_text, fill=cpu_color, font=font_large)
+            # CPU content
+            draw.text((35, y_start + 10), "CPU USAGE", fill=(200, 220, 255), font=font_small)
+            draw.text((35, y_start + 28), f"{stats['cpu_percent']:.1f}%", fill=cpu_color, font=font_large)
+            draw.text((35, y_start + 52), f"Load: {stats['load_avg'][0]:.2f}", fill=(150, 170, 200), font=font_tiny)
+            
+            # CPU status icon
+            self.draw_status_icon(draw, 275, y_start + 20, "cpu", stats["cpu_percent"], self.cpu_thresholds)
             
             # CPU progress bar
-            self.draw_metric_bar(draw, 200, y_pos + 5, 200, 12, stats["cpu_percent"], 100, cpu_color)
+            self.draw_metric_bar(draw, 150, y_start + 35, 150, 8, stats["cpu_percent"], 100, cpu_color)
             
-            if font_small:
-                load_text = f"Load: {stats['load_avg'][0]:.2f}"
-                draw.text((420, y_pos + 2), load_text, fill=(150, 150, 200), font=font_small)
-            
-            # Memory Section
-            y_pos += 35
+            # Memory Card
             memory_color = self.get_metric_color(stats["memory_percent"], self.memory_thresholds)
+            memory_card = self.draw_metric_card(draw, 325, y_start, card_width, card_height,
+                                              "RAM", f"{stats['memory_percent']:.1f}", "%",
+                                              stats["memory_percent"], memory_color)
+            display_image = Image.alpha_composite(display_image.convert('RGBA'), memory_card).convert('RGB')
+            
+            # Memory content
             memory_used_gb = stats["memory_used"] / (1024**3)
             memory_total_gb = stats["memory_total"] / (1024**3)
+            draw.text((335, y_start + 10), "MEMORY USAGE", fill=(200, 220, 255), font=font_small)
+            draw.text((335, y_start + 28), f"{stats['memory_percent']:.1f}%", fill=memory_color, font=font_large)
+            draw.text((335, y_start + 52), f"{memory_used_gb:.1f}GB / {memory_total_gb:.1f}GB", fill=(150, 170, 200), font=font_tiny)
             
-            if font_large:
-                memory_text = f"RAM: {stats['memory_percent']:.1f}%"
-                draw.text((21, y_pos + 1), memory_text, fill=(0, 0, 0), font=font_large)
-                draw.text((20, y_pos), memory_text, fill=memory_color, font=font_large)
+            # Memory status icon
+            self.draw_status_icon(draw, 575, y_start + 20, "memory", stats["memory_percent"], self.memory_thresholds)
             
             # Memory progress bar
-            self.draw_metric_bar(draw, 200, y_pos + 5, 200, 12, stats["memory_percent"], 100, memory_color)
+            self.draw_metric_bar(draw, 450, y_start + 35, 150, 8, stats["memory_percent"], 100, memory_color)
             
-            if font_small:
-                memory_detail = f"{memory_used_gb:.1f}GB / {memory_total_gb:.1f}GB"
-                draw.text((420, y_pos + 2), memory_detail, fill=(150, 150, 200), font=font_small)
+            # Row 2: Temperature and Disk
+            y_start += card_height + card_margin
             
-            # Temperature Section
-            y_pos += 35
+            # Temperature Card
             temp_color = self.get_metric_color(stats["temperature"], self.temp_thresholds)
+            temp_card = self.draw_metric_card(draw, 25, y_start, card_width, card_height,
+                                            "TEMP", f"{stats['temperature']:.1f}", "°C",
+                                            stats["temperature"], temp_color)
+            display_image = Image.alpha_composite(display_image.convert('RGBA'), temp_card).convert('RGB')
             
-            if font_large:
-                temp_text = f"TEMP: {stats['temperature']:.1f}C"
-                draw.text((21, y_pos + 1), temp_text, fill=(0, 0, 0), font=font_large)
-                draw.text((20, y_pos), temp_text, fill=temp_color, font=font_large)
+            # Temperature content
+            draw.text((35, y_start + 10), "CPU TEMPERATURE", fill=(200, 220, 255), font=font_small)
+            draw.text((35, y_start + 28), f"{stats['temperature']:.1f}°C", fill=temp_color, font=font_large)
+            temp_status = "OPTIMAL" if stats["temperature"] < 50 else "NORMAL" if stats["temperature"] < 65 else "WARM" if stats["temperature"] < 75 else "HOT"
+            draw.text((35, y_start + 52), temp_status, fill=temp_color, font=font_tiny)
             
-            # Temperature bar (scaled 0-100°C)
-            self.draw_metric_bar(draw, 200, y_pos + 5, 200, 12, stats["temperature"], 100, temp_color)
+            # Temperature status icon
+            self.draw_status_icon(draw, 275, y_start + 20, "temp", stats["temperature"], self.temp_thresholds)
             
-            if font_small:
-                temp_status = "NORMAL" if stats["temperature"] < 60 else "WARM" if stats["temperature"] < 75 else "HOT"
-                draw.text((420, y_pos + 2), temp_status, fill=temp_color, font=font_small)
+            # Temperature progress bar (scaled 0-100°C)
+            self.draw_metric_bar(draw, 150, y_start + 35, 150, 8, stats["temperature"], 100, temp_color)
             
-            # Disk Usage Section
-            y_pos += 35
+            # Disk Card
             disk_color = self.get_metric_color(stats["disk_percent"], self.disk_thresholds)
+            disk_card = self.draw_metric_card(draw, 325, y_start, card_width, card_height,
+                                            "DISK", f"{stats['disk_percent']:.1f}", "%",
+                                            stats["disk_percent"], disk_color)
+            display_image = Image.alpha_composite(display_image.convert('RGBA'), disk_card).convert('RGB')
             
-            if font_large:
-                disk_text = f"DISK: {stats['disk_percent']:.1f}%"
-                draw.text((21, y_pos + 1), disk_text, fill=(0, 0, 0), font=font_large)
-                draw.text((20, y_pos), disk_text, fill=disk_color, font=font_large)
+            # Disk content
+            draw.text((335, y_start + 10), "DISK USAGE", fill=(200, 220, 255), font=font_small)
+            draw.text((335, y_start + 28), f"{stats['disk_percent']:.1f}%", fill=disk_color, font=font_large)
+            draw.text((335, y_start + 52), f"{self.format_bytes(stats['disk_used'])} / {self.format_bytes(stats['disk_total'])}", fill=(150, 170, 200), font=font_tiny)
+            
+            # Disk status icon
+            self.draw_status_icon(draw, 575, y_start + 20, "disk", stats["disk_percent"], self.disk_thresholds)
             
             # Disk progress bar
-            self.draw_metric_bar(draw, 200, y_pos + 5, 200, 12, stats["disk_percent"], 100, disk_color)
+            self.draw_metric_bar(draw, 450, y_start + 35, 150, 8, stats["disk_percent"], 100, disk_color)
             
-            if font_small:
-                disk_detail = f"{self.format_bytes(stats['disk_used'])} / {self.format_bytes(stats['disk_total'])}"
-                draw.text((420, y_pos + 2), disk_detail, fill=(150, 150, 200), font=font_small)
+            # Bottom info panel
+            y_info = 240
+            info_height = 120
             
-            # Network and Process Info
-            y_pos += 40
+            # Info panel background
+            info_overlay = Image.new('RGBA', (640, info_height), (0, 0, 0, 0))
+            info_draw = ImageDraw.Draw(info_overlay)
+            
+            # Info panel gradient
+            for i in range(info_height):
+                factor = i / info_height
+                bg_r = int(25 + (20 * factor))
+                bg_g = int(35 + (25 * factor))
+                bg_b = int(55 + (30 * factor))
+                alpha = 160
+                info_draw.line([(20, i), (620, i)], fill=(bg_r, bg_g, bg_b, alpha))
+            
+            # Info panel border
+            info_draw.rectangle([20, 0, 620, info_height-1], outline=(80, 120, 160, 255), width=2)
+            
+            # Composite info panel
+            info_positioned = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
+            info_positioned.paste(info_overlay, (0, y_info))
+            display_image = Image.alpha_composite(display_image.convert('RGBA'), info_positioned).convert('RGB')
+            
+            # Network and Process Information
             if font_medium:
-                network_text = f"Network: ↑{self.format_bytes(stats['bytes_sent'])} ↓{self.format_bytes(stats['bytes_recv'])}"
-                draw.text((21, y_pos + 1), network_text, fill=(0, 0, 0), font=font_medium)
-                draw.text((20, y_pos), network_text, fill=(100, 255, 150), font=font_medium)
+                # Network section
+                draw.text((35, y_info + 15), "NETWORK ACTIVITY", fill=(120, 200, 255), font=font_small)
+                network_text = f"↑ {self.format_bytes(stats['bytes_sent'])}   ↓ {self.format_bytes(stats['bytes_recv'])}"
+                draw.text((35, y_info + 35), network_text, fill=(100, 255, 150), font=font_medium)
                 
+                # Process information
+                draw.text((350, y_info + 15), "SYSTEM INFO", fill=(120, 200, 255), font=font_small)
                 process_text = f"Processes: {stats['process_count']}"
-                draw.text((21, y_pos + 21), process_text, fill=(0, 0, 0), font=font_medium)
-                draw.text((20, y_pos + 20), process_text, fill=(255, 200, 100), font=font_medium)
-            
-            # System Info Footer
-            y_pos = 350
-            if font_small:
-                kernel_text = f"Kernel: {stats['kernel']}"
-                draw.text((21, y_pos + 1), kernel_text, fill=(0, 0, 0), font=font_small)
-                draw.text((20, y_pos), kernel_text, fill=(150, 150, 200), font=font_small)
+                draw.text((350, y_info + 35), process_text, fill=(255, 200, 100), font=font_medium)
                 
-                updated_text = f"Last Updated: {datetime.now().strftime('%H:%M:%S')}"
-                bbox = draw.textbbox((0, 0), updated_text, font=font_small)
+                # Kernel info
+                draw.text((35, y_info + 65), f"Kernel: {stats['kernel']}", fill=(150, 170, 200), font=font_tiny)
+                
+                # Last updated
+                updated_text = f"Updated: {datetime.now().strftime('%H:%M:%S')}"
+                bbox = draw.textbbox((0, 0), updated_text, font=font_tiny)
                 update_width = bbox[2] - bbox[0]
-                update_x = 640 - update_width - 20
-                draw.text((update_x + 1, y_pos + 21), updated_text, fill=(0, 0, 0), font=font_small)
-                draw.text((update_x, y_pos + 20), updated_text, fill=(100, 100, 150), font=font_small)
+                update_x = 620 - update_width
+                draw.text((update_x, y_info + 85), updated_text, fill=(120, 140, 180), font=font_tiny)
             
-            # Display the system dashboard
+            # Display the enhanced system dashboard
             self.inky.set_image(display_image)
             self.inky.show()
             
-            print(f"System Dashboard: CPU {stats['cpu_percent']:.1f}%, RAM {stats['memory_percent']:.1f}%, Temp {stats['temperature']:.1f}°C")
+            print(f"Enhanced System Dashboard: CPU {stats['cpu_percent']:.1f}%, RAM {stats['memory_percent']:.1f}%, Temp {stats['temperature']:.1f}°C")
             
         except Exception as e:
             print(f"Error displaying system dashboard: {e}")
             self.display_error_message("System Dashboard Error", str(e))
     
     def display_error_message(self, title, message):
-        """Display an error message with system theme."""
-        image = Image.new("RGB", (640, 400), (40, 40, 60))
+        """Display an enhanced error message with modern system theme."""
+        # Create enhanced background
+        image = self.create_system_background()
         draw = ImageDraw.Draw(image)
         
-        try:
-            font_title = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 20)
-            font_text = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 16)
-        except:
-            font_title = font_text = ImageFont.load_default()
+        # Use font manager for error display
+        font_title = font_manager.get_font('title', 24)
+        font_text = font_manager.get_font('regular', 16)
+        font_small = font_manager.get_font('small', 14)
+        
+        # Error panel
+        panel_x, panel_y = 100, 150
+        panel_width, panel_height = 440, 100
+        
+        # Error panel background
+        error_overlay = Image.new('RGBA', (panel_width, panel_height), (0, 0, 0, 0))
+        error_draw = ImageDraw.Draw(error_overlay)
+        
+        # Error panel gradient (red theme)
+        for i in range(panel_height):
+            factor = i / panel_height
+            bg_r = int(60 + (20 * factor))
+            bg_g = int(20 + (10 * factor))
+            bg_b = int(20 + (10 * factor))
+            alpha = 200
+            error_draw.line([(0, i), (panel_width, i)], fill=(bg_r, bg_g, bg_b, alpha))
+        
+        # Error panel border
+        error_draw.rectangle([0, 0, panel_width-1, panel_height-1], outline=(255, 100, 100, 255), width=2)
+        
+        # Position and composite error panel
+        error_positioned = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
+        error_positioned.paste(error_overlay, (panel_x, panel_y))
+        image = Image.alpha_composite(image.convert('RGBA'), error_positioned).convert('RGB')
             
         if font_title:
-            # Draw error title
+            # Draw error title with glow
             bbox = draw.textbbox((0, 0), title, font=font_title)
             text_width = bbox[2] - bbox[0]
             x = (640 - text_width) // 2
-            draw.text((x, 180), title, fill=(255, 100, 100), font=font_title)
+            # Glow effect
+            for offset in [(2, 2), (1, 1), (-1, -1), (-2, -2)]:
+                draw.text((x + offset[0], 170 + offset[1]), title, fill=(100, 20, 20), font=font_title)
+            # Main title
+            draw.text((x, 170), title, fill=(255, 150, 150), font=font_title)
             
         if font_text:
             # Draw error message (truncated)
@@ -399,7 +554,15 @@ class SystemScreen(BaseScreen):
             bbox = draw.textbbox((0, 0), message, font=font_text)
             text_width = bbox[2] - bbox[0]
             x = (640 - text_width) // 2
-            draw.text((x, 220), message, fill=(200, 200, 200), font=font_text)
+            draw.text((x, 210), message, fill=(255, 200, 200), font=font_text)
+        
+        if font_small:
+            # Add helpful message
+            help_text = "System monitoring will retry automatically"
+            bbox = draw.textbbox((0, 0), help_text, font=font_small)
+            text_width = bbox[2] - bbox[0]
+            x = (640 - text_width) // 2
+            draw.text((x, 235), help_text, fill=(200, 200, 255), font=font_small)
         
         self.inky.set_image(image)
         self.inky.show()

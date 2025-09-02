@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .base_screen import BaseScreen
 import config
+from font_manager import font_manager
 
 class WeatherScreen(BaseScreen):
     def __init__(self):
@@ -246,38 +247,59 @@ class WeatherScreen(BaseScreen):
         return self.weather_themes[3]
 
     def create_weather_background(self, weather_code):
-        """Create rich, colorful weather-themed background."""
+        """Create rich, colorful weather-themed background with enhanced depth."""
         # Get theme with intelligent fallback
         theme = self.get_weather_theme(weather_code)
         
         image = Image.new("RGB", (640, 400), theme["gradient"][0])
         draw = ImageDraw.Draw(image)
         
-        # Create rich gradient background
+        # Create enhanced multi-layer gradient background
         for y in range(400):
             ratio = y / 400
-            if ratio < 0.33:
-                # Top third
-                blend_ratio = ratio * 3
+            if ratio < 0.25:
+                # Top quarter - dramatic sky
+                blend_ratio = ratio * 4
                 r = int(theme["gradient"][0][0] * (1 - blend_ratio) + theme["gradient"][1][0] * blend_ratio)
                 g = int(theme["gradient"][0][1] * (1 - blend_ratio) + theme["gradient"][1][1] * blend_ratio)
                 b = int(theme["gradient"][0][2] * (1 - blend_ratio) + theme["gradient"][1][2] * blend_ratio)
-            elif ratio < 0.66:
-                # Middle third
-                blend_ratio = (ratio - 0.33) * 3
+            elif ratio < 0.7:
+                # Middle section - main gradient
+                blend_ratio = (ratio - 0.25) / 0.45
                 r = int(theme["gradient"][1][0] * (1 - blend_ratio) + theme["gradient"][2][0] * blend_ratio)
                 g = int(theme["gradient"][1][1] * (1 - blend_ratio) + theme["gradient"][2][1] * blend_ratio)
                 b = int(theme["gradient"][1][2] * (1 - blend_ratio) + theme["gradient"][2][2] * blend_ratio)
             else:
-                # Bottom third - stay at final color
-                r, g, b = theme["gradient"][2]
+                # Bottom section - deeper color
+                bottom_ratio = (ratio - 0.7) / 0.3
+                base_r, base_g, base_b = theme["gradient"][2]
+                # Darken slightly for depth
+                r = int(base_r * (1 - bottom_ratio * 0.15))
+                g = int(base_g * (1 - bottom_ratio * 0.15))
+                b = int(base_b * (1 - bottom_ratio * 0.15))
             
             draw.line([(0, y), (640, y)], fill=(r, g, b))
+        
+        # Add subtle texture overlay for depth
+        self.add_texture_overlay(draw, theme)
         
         # Add weather-specific visual elements
         self.add_weather_visuals(draw, weather_code, theme)
         
         return image, theme
+    
+    def add_texture_overlay(self, draw, theme):
+        """Add subtle texture for visual depth."""
+        import random
+        random.seed(42)  # Consistent pattern
+        
+        # Add subtle dots/texture across the background
+        for i in range(80):  # Reduced number for subtlety
+            x = random.randint(0, 640)
+            y = random.randint(0, 400)
+            # Very subtle texture dots
+            alpha_color = (*theme["pattern_color"], 25)
+            draw.ellipse([x-1, y-1, x+1, y+1], fill=alpha_color[:3])
     
     def add_weather_visuals(self, draw, weather_code, theme):
         """Add rich visual elements based on weather condition."""
@@ -436,46 +458,63 @@ class WeatherScreen(BaseScreen):
             draw.line([points[i], points[i+1]], fill=(255, 255, 255), width=2)
     
     def create_weather_icon_large(self, weather_code, size=60):
-        """Create large, detailed weather icons for all weather conditions."""
+        """Create enhanced, detailed weather icons with better visual quality."""
         icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(icon)
         
         center = size // 2
         
         if weather_code in [0, 1]:  # Sunny/Clear
-            # Large sun with rays
+            # Enhanced sun with gradient effect
+            # Outer glow
+            draw.ellipse([center-25, center-25, center+25, center+25], fill=(255, 215, 0, 100))
+            # Main sun body with layered effect
             draw.ellipse([center-20, center-20, center+20, center+20], fill=(255, 215, 0))
-            draw.ellipse([center-15, center-15, center+15, center+15], fill=(255, 255, 0))
+            draw.ellipse([center-16, center-16, center+16, center+16], fill=(255, 235, 50))
+            draw.ellipse([center-12, center-12, center+12, center+12], fill=(255, 255, 100))
             draw.ellipse([center-8, center-8, center+8, center+8], fill=(255, 255, 200))
-            # Sun rays
-            for angle in range(0, 360, 45):
+            
+            # Enhanced sun rays with varying lengths
+            for i, angle in enumerate(range(0, 360, 30)):
                 rad = math.radians(angle)
-                x1 = center + 25 * math.cos(rad)
-                y1 = center + 25 * math.sin(rad)
-                x2 = center + 35 * math.cos(rad)
-                y2 = center + 35 * math.sin(rad)
-                draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=3)
+                ray_length = 30 if i % 2 == 0 else 25  # Alternating ray lengths
+                x1 = center + 22 * math.cos(rad)
+                y1 = center + 22 * math.sin(rad)
+                x2 = center + ray_length * math.cos(rad)
+                y2 = center + ray_length * math.sin(rad)
+                draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=4)
         
         elif weather_code in [2, 3]:  # Partly cloudy/Overcast
-            if weather_code == 2:  # Partly cloudy - sun behind cloud
-                # Small sun
+            if weather_code == 2:  # Partly cloudy - enhanced sun behind cloud
+                # Sun with partial visibility
                 draw.ellipse([center-25, center-20, center-5, center], fill=(255, 215, 0))
-                # Sun rays (partial)
-                for angle in range(180, 360, 30):
+                draw.ellipse([center-22, center-17, center-8, center-3], fill=(255, 235, 50))
+                # Visible sun rays
+                for angle in range(200, 340, 25):
                     rad = math.radians(angle)
                     x1 = center-15 + 15 * math.cos(rad)
                     y1 = center-10 + 15 * math.sin(rad)
                     x2 = center-15 + 25 * math.cos(rad)
                     y2 = center-10 + 25 * math.sin(rad)
-                    draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=2)
+                    draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=3)
             
-            # Cloud
-            draw.ellipse([center-20, center-5, center+10, center+15], fill=(169, 169, 169))
-            draw.ellipse([center-10, center-15, center+20, center+5], fill=(192, 192, 192))
-            draw.ellipse([center-5, center-10, center+25, center+10], fill=(169, 169, 169))
+            # Enhanced layered cloud with depth
+            # Cloud shadows for depth
+            draw.ellipse([center-18, center-3, center+12, center+17], fill=(140, 140, 140))
+            draw.ellipse([center-8, center-13, center+22, center+7], fill=(140, 140, 140))
+            draw.ellipse([center-3, center-8, center+27, center+12], fill=(140, 140, 140))
+            
+            # Main cloud layers
+            draw.ellipse([center-20, center-5, center+10, center+15], fill=(180, 180, 180))
+            draw.ellipse([center-10, center-15, center+20, center+5], fill=(200, 200, 200))
+            draw.ellipse([center-5, center-10, center+25, center+10], fill=(220, 220, 220))
+            
+            # Cloud highlights
+            draw.ellipse([center-15, center-8, center+5, center+8], fill=(240, 240, 240))
+            draw.ellipse([center-2, center-12, center+18, center+2], fill=(240, 240, 240))
         
         elif weather_code in [45, 48]:  # Fog
-            # Horizontal fog lines
+            # Enhanced fog with varying opacity
             for y_offset in range(-15, 20, 6):
                 draw.ellipse([center-20, center+y_offset-2, center+20, center+y_offset+2], 
                            fill=(176, 196, 222))
@@ -585,22 +624,12 @@ class WeatherScreen(BaseScreen):
             display_image, theme = self.create_weather_background(weather_code)
             draw = ImageDraw.Draw(display_image)
             
-            # Load large fonts
-            try:
-                font_header = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 28)
-                font_temp = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", 48)  # Very large temp
-                font_large = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 20)
-                font_medium = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 16)
-                font_small = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 14)
-            except:
-                try:
-                    font_header = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-                    font_temp = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-                    font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-                    font_medium = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-                    font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-                except:
-                    font_header = font_temp = font_large = font_medium = font_small = ImageFont.load_default()
+            # Load enhanced fonts with larger sizes using font manager
+            font_header = font_manager.get_font('title', 32)   # Larger header
+            font_temp = font_manager.get_font('bold', 56)      # Larger temp
+            font_large = font_manager.get_font('bold', 22)     # Larger labels
+            font_medium = font_manager.get_font('regular', 18) # Larger medium
+            font_small = font_manager.get_font('small', 15)    # Larger small
             
             # Header with location
             header_text = f"WEATHER - {self.city_name.upper()}"
@@ -620,97 +649,120 @@ class WeatherScreen(BaseScreen):
                 # Main temperature
                 draw.text((temp_x, temp_y), temp_text, fill=theme["text_color"], font=font_temp)
             
-            # Weather description - large and clear
+            # Weather description - larger and clearer with shadow
             weather_desc = self.weather_descriptions.get(weather_code, "Unknown")
             if font_large:
+                # Add shadow for better visibility
+                draw.text((61, 141), weather_desc, fill=(0, 0, 0, 100), font=font_large)
                 draw.text((60, 140), weather_desc, fill=theme["text_color"], font=font_large)
             
-            # Large weather icon
-            weather_icon = self.create_weather_icon_large(weather_code, 80)
-            display_image.paste(weather_icon, (420, 60), weather_icon)
+            # Enhanced large weather icon
+            weather_icon = self.create_weather_icon_large(weather_code, 90)  # Larger icon
+            display_image.paste(weather_icon, (420, 55), weather_icon)
             
-            # Current conditions with larger text and colorful icons
-            conditions_y = 180
+            # Current conditions with enhanced layout and larger text
+            conditions_y = 175
             humidity = current.get("humidity", 28)
             wind_speed = current.get("windspeed", 0)
             
-            if font_medium:
-                # Create colorful condition indicators with simple icons
-                # Draw humidity icon (water drop shape)
-                self.draw_water_drop(draw, 40, conditions_y + 5, theme["text_color"])
-                draw.text((60, conditions_y), f"Humidity: {humidity}%", fill=theme["text_color"], font=font_medium)
+            if font_large:  # Use larger font for conditions
+                # Create enhanced condition indicators with better spacing
+                # Humidity with water drop icon
+                self.draw_water_drop(draw, 42, conditions_y + 8, theme["text_color"])
+                humidity_text = f"Humidity: {humidity}%"
+                draw.text((61, conditions_y + 1), humidity_text, fill=(0, 0, 0, 100), font=font_medium)
+                draw.text((60, conditions_y), humidity_text, fill=theme["text_color"], font=font_medium)
                 
-                # Draw wind icon (arrow shape)
-                self.draw_wind_arrow(draw, 40, conditions_y + 30, theme["text_color"])
-                draw.text((60, conditions_y + 25), f"Wind: {wind_speed} mph", fill=theme["text_color"], font=font_medium)
+                # Wind with enhanced arrow icon
+                self.draw_wind_arrow(draw, 42, conditions_y + 33, theme["text_color"])
+                wind_text = f"Wind: {wind_speed:.1f} mph"
+                draw.text((61, conditions_y + 26), wind_text, fill=(0, 0, 0, 100), font=font_medium)
+                draw.text((60, conditions_y + 25), wind_text, fill=theme["text_color"], font=font_medium)
                 
-                # Draw clock icon (circle with hands)
-                self.draw_clock_icon(draw, 40, conditions_y + 55, theme["text_color"])
+                # Time updated with clock icon
                 current_time = datetime.now().strftime("%I:%M %p")
-                draw.text((60, conditions_y + 50), f"Updated: {current_time}", fill=theme["text_color"], font=font_medium)
+                self.draw_clock_icon(draw, 42, conditions_y + 58, theme["text_color"])
+                time_text = f"Updated: {current_time}"
+                draw.text((61, conditions_y + 51), time_text, fill=(0, 0, 0, 100), font=font_small)
+                draw.text((60, conditions_y + 50), time_text, fill=theme["text_color"], font=font_small)
             
-            # 5-Day forecast with larger cards
-            forecast_y = 260
+            # Enhanced 5-Day forecast with better justified layout
+            forecast_y = 250
             if font_large:
                 draw.text((40, forecast_y), "5-DAY FORECAST", fill=theme["text_color"], font=font_large)
             
             daily = weather_data["daily"]
-            card_width = 110
-            card_spacing = 10
             
-            for i in range(min(5, len(daily["time"]))):
-                card_x = 40 + i * (card_width + card_spacing)
-                card_y = forecast_y + 35
+            # Calculate perfect spacing to fill screen width
+            total_width = 640 - 80  # Screen width minus left/right margins (40 each)
+            num_cards = min(5, len(daily["time"]))
+            card_width = 100  # Slightly smaller cards
+            total_card_width = num_cards * card_width
+            total_spacing = total_width - total_card_width
+            card_spacing = total_spacing / (num_cards - 1) if num_cards > 1 else 0
+            
+            for i in range(num_cards):
+                # Precisely calculated positions for perfect justification
+                card_x = int(40 + i * (card_width + card_spacing))
+                card_y = forecast_y + 40
                 
-                if card_x + card_width > 600:
-                    break
+                # Enhanced forecast card with gradient effect
+                card_overlay = Image.new("RGBA", (card_width, 90), (0, 0, 0, 0))
+                card_draw = ImageDraw.Draw(card_overlay)
                 
-                # Create semi-transparent forecast card
-                card_overlay = Image.new("RGBA", (card_width, 80), (*theme["accent"], 80))
+                # Create gradient card background
+                for y in range(90):
+                    alpha = int(60 + (y / 90) * 40)  # Gradient alpha from 60 to 100
+                    card_draw.line([(0, y), (card_width, y)], fill=(*theme["accent"], alpha))
+                
+                # Add subtle border
+                card_draw.rectangle([0, 0, card_width-1, 89], outline=(*theme["text_color"], 150), width=2)
                 display_image.paste(card_overlay, (card_x, card_y), card_overlay)
                 
-                # Day label
+                # Day label - larger text
                 try:
                     date_obj = datetime.strptime(daily["time"][i], "%Y-%m-%d")
                     if i == 0:
                         day_text = "TODAY"
                     elif i == 1:
-                        day_text = "TOMORROW"
+                        day_text = "TMRW"  # Shorter to fit better
                     else:
                         day_text = date_obj.strftime("%a").upper()
                 except:
                     day_text = f"DAY {i+1}"
                 
-                if font_small:
-                    bbox = draw.textbbox((0, 0), day_text, font=font_small)
+                if font_medium:  # Use larger font for day labels
+                    bbox = draw.textbbox((0, 0), day_text, font=font_medium)
                     text_width = bbox[2] - bbox[0]
                     text_x = card_x + (card_width - text_width) // 2
-                    draw.text((text_x, card_y + 8), day_text, fill=theme["text_color"], font=font_small)
+                    draw.text((text_x, card_y + 5), day_text, fill=theme["text_color"], font=font_medium)
                 
-                # Weather icon for forecast
+                # Enhanced weather icon for forecast
                 forecast_code = daily["weathercode"][i]
-                mini_icon = self.create_weather_icon_large(forecast_code, 30)
-                icon_x = card_x + (card_width - 30) // 2
-                display_image.paste(mini_icon, (icon_x, card_y + 25), mini_icon)
+                mini_icon = self.create_weather_icon_large(forecast_code, 35)  # Slightly larger icons
+                icon_x = card_x + (card_width - 35) // 2
+                display_image.paste(mini_icon, (icon_x, card_y + 28), mini_icon)
                 
-                # Temperatures
+                # Temperatures with better layout
                 high_temp = int(daily["temperature_2m_max"][i])
                 low_temp = int(daily["temperature_2m_min"][i])
                 
                 if font_medium:
-                    # High temp
+                    # High temp - larger and more prominent
                     high_text = f"{high_temp}°"
                     bbox = draw.textbbox((0, 0), high_text, font=font_medium)
                     text_width = bbox[2] - bbox[0]
                     text_x = card_x + (card_width - text_width) // 2
-                    draw.text((text_x, card_y + 57), high_text, fill=theme["text_color"], font=font_medium)
+                    # Add shadow for high temp
+                    draw.text((text_x + 1, card_y + 66), high_text, fill=(0, 0, 0, 100), font=font_medium)
+                    draw.text((text_x, card_y + 65), high_text, fill=theme["text_color"], font=font_medium)
                     
-                    # Low temp (smaller)
+                    # Low temp positioned better
                     low_text = f"{low_temp}°"
                     bbox = draw.textbbox((0, 0), low_text, font=font_small)
                     text_width = bbox[2] - bbox[0]
-                    text_x = card_x + (card_width - text_width) // 2
-                    draw.text((text_x + 30, card_y + 60), low_text, fill=(100, 100, 100), font=font_small)
+                    low_x = card_x + card_width - text_width - 8  # Right-aligned within card
+                    draw.text((low_x, card_y + 8), low_text, fill=(120, 120, 120), font=font_small)
             
             # Display the weather
             self.inky.set_image(display_image)
@@ -728,7 +780,7 @@ class WeatherScreen(BaseScreen):
         draw = ImageDraw.Draw(image)
         
         try:
-            font = ImageFont.load_default()
+            font = font_manager.get_font('regular', 16)
         except:
             font = None
             
