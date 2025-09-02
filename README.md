@@ -45,7 +45,19 @@ An interactive 4-screen dashboard system for the Pimoroni Inky Impression 4" e-i
    pip3 install requests Pillow psutil
    ```
 
-2. Configure your location in `config.py`
+2. Configure your location and preferences in `config.py`:
+   ```python
+   # Location Configuration
+   LOCATION_LATITUDE = 33.4484    # Your latitude
+   LOCATION_LONGITUDE = -112.0740 # Your longitude
+   LOCATION_CITY = "Your City"    # Your city name
+   
+   # Update intervals (seconds)
+   ARTWORK_UPDATE_INTERVAL = 300    # 5 minutes
+   WEATHER_UPDATE_INTERVAL = 900    # 15 minutes  
+   STARMAP_UPDATE_INTERVAL = 3600   # 1 hour
+   SYSTEM_UPDATE_INTERVAL = 60      # 1 minute
+   ```
 
 3. Run the dashboard:
    ```bash
@@ -69,13 +81,12 @@ impression4_dashboard/
 ├── main.py                    # Main dashboard controller
 ├── config.py                  # All configuration settings
 ├── requirements.txt           # Minimal dependencies  
-├── monitor.py                 # Performance monitoring for Pi Zero 2 W
 ├── test_setup.py              # Setup verification
 └── screens/                   # Screen implementations
     ├── base_screen.py         # Base screen class
-    ├── artwork_screen.py      # Classical artwork
-    ├── quotes_screen.py       # Daily quotes
-    ├── news_screen.py         # Local news (RSS feeds)
+    ├── artwork_screen.py      # Classical artwork with quotes
+    ├── starmap_screen.py      # Night sky star chart
+    ├── system_screen.py       # System monitoring dashboard
     └── weather_screen.py      # Weather forecast
 ```
 
@@ -86,8 +97,6 @@ Optimized for Raspberry Pi Zero 2 W:
 - Efficient API calls (fewer requests, smart caching)
 - Simple threading model
 - No unnecessary dependencies
-
-Monitor performance: `python3 monitor.py`
 
 ## API Sources
 

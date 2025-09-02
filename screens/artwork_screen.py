@@ -7,11 +7,16 @@ Updates every 5 minutes with new artwork and quotes
 import requests
 import json
 import random
+import ssl
+import urllib3
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 from io import BytesIO
 from .base_screen import BaseScreen
 import config
+
+# Disable SSL warnings for older systems
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class ArtworkScreen(BaseScreen):
     def __init__(self):
@@ -180,7 +185,14 @@ class ArtworkScreen(BaseScreen):
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
-            response = requests.get(image_url, headers=headers, timeout=20)
+            
+            # Try with SSL verification first, then without if needed
+            try:
+                response = requests.get(image_url, headers=headers, timeout=20, verify=True)
+            except (requests.exceptions.SSLError, ssl.SSLError):
+                print(f"SSL verification failed for image, trying without verification...")
+                response = requests.get(image_url, headers=headers, timeout=20, verify=False)
+            
             if response.status_code == 200:
                 image = Image.open(BytesIO(response.content))
                 
@@ -232,12 +244,19 @@ class ArtworkScreen(BaseScreen):
             return None
     
     def fetch_quote(self):
-        """Fetch an inspiring quote from multiple sources."""
+        """Fetch an inspiring quote from multiple sources with SSL error handling."""
         try:
-            # Try to fetch from quote APIs
+            # Try to fetch from quote APIs with SSL verification disabled for older systems
             for source in self.quote_sources:
                 try:
-                    response = requests.get(source['url'], timeout=10)
+                    # Try with SSL verification first
+                    try:
+                        response = requests.get(source['url'], timeout=10, verify=True)
+                    except (requests.exceptions.SSLError, ssl.SSLError):
+                        # If SSL fails, try without verification (for older Pi systems)
+                        print(f"SSL verification failed for {source['name']}, trying without verification...")
+                        response = requests.get(source['url'], timeout=10, verify=False)
+                    
                     if response.status_code == 200:
                         data = response.json()
                         
@@ -263,6 +282,7 @@ class ArtworkScreen(BaseScreen):
             print(f"Error in fetch_quote: {e}")
         
         # Return fallback quote if all APIs fail
+        print("Using fallback quote due to API failures")
         return random.choice(self.fallback_quotes)
     
     def display(self):

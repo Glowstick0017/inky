@@ -16,12 +16,13 @@ import config
 class StarmapScreen(BaseScreen):
     def __init__(self):
         super().__init__()
-        self.update_interval = 1800  # 30 minutes
+        self.update_interval = config.STARMAP_UPDATE_INTERVAL if hasattr(config, 'STARMAP_UPDATE_INTERVAL') else 1800
         self.current_starmap = None
         
-        # Phoenix coordinates (from config)
-        self.latitude = config.WEATHER_LATITUDE if hasattr(config, 'WEATHER_LATITUDE') else 33.4484
-        self.longitude = config.WEATHER_LONGITUDE if hasattr(config, 'WEATHER_LONGITUDE') else -112.0740
+        # Location coordinates (use dedicated location config or fallback)
+        self.latitude = config.LOCATION_LATITUDE if hasattr(config, 'LOCATION_LATITUDE') else config.WEATHER_LATITUDE if hasattr(config, 'WEATHER_LATITUDE') else 33.4484
+        self.longitude = config.LOCATION_LONGITUDE if hasattr(config, 'LOCATION_LONGITUDE') else config.WEATHER_LONGITUDE if hasattr(config, 'WEATHER_LONGITUDE') else -112.0740
+        self.city_name = config.LOCATION_CITY if hasattr(config, 'LOCATION_CITY') else config.WEATHER_CITY_NAME if hasattr(config, 'WEATHER_CITY_NAME') else "Phoenix, AZ"
         
         # Star chart APIs - we'll use multiple sources with fallbacks
         self.astronomy_api_base = "https://api.astronomyapi.com/api/v2"

@@ -16,14 +16,14 @@ import config
 class SystemScreen(BaseScreen):
     def __init__(self):
         super().__init__()
-        self.update_interval = 60  # Update every minute
+        self.update_interval = config.SYSTEM_UPDATE_INTERVAL if hasattr(config, 'SYSTEM_UPDATE_INTERVAL') else 60
         self.current_stats = None
         
         # Temperature thresholds for color coding
         self.temp_thresholds = {
-            "normal": 50,    # Below 50°C - green
-            "warm": 65,      # 50-65°C - yellow  
-            "hot": 75,       # 65-75°C - orange
+            "low": 50,       # Below 50°C - green
+            "medium": 65,    # 50-65°C - yellow  
+            "high": 75,      # 65-75°C - orange
             "critical": 80   # Above 80°C - red
         }
         
