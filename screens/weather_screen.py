@@ -545,6 +545,30 @@ class WeatherScreen(BaseScreen):
         draw.line([(x-2, y-2), (x+2, y+2)], fill=(255, 255, 255), width=1)
         draw.line([(x-2, y+2), (x+2, y-2)], fill=(255, 255, 255), width=1)
     
+    def draw_water_drop(self, draw, x, y, color):
+        """Draw a simple water drop icon."""
+        # Water drop shape
+        draw.ellipse([x, y+3, x+6, y+9], fill=color)
+        draw.polygon([(x+3, y), (x+1, y+5), (x+5, y+5)], fill=color)
+    
+    def draw_wind_arrow(self, draw, x, y, color):
+        """Draw a simple wind arrow icon."""
+        # Horizontal arrow with wind lines
+        draw.line([(x, y+3), (x+8, y+3)], fill=color, width=2)
+        draw.line([(x+6, y+1), (x+8, y+3), (x+6, y+5)], fill=color, width=2)
+        # Wind lines
+        draw.line([(x+10, y+1), (x+14, y+1)], fill=color, width=1)
+        draw.line([(x+10, y+3), (x+16, y+3)], fill=color, width=1)
+        draw.line([(x+10, y+5), (x+14, y+5)], fill=color, width=1)
+    
+    def draw_clock_icon(self, draw, x, y, color):
+        """Draw a simple clock icon."""
+        # Clock circle
+        draw.ellipse([x, y, x+8, y+8], outline=color, width=1)
+        # Clock hands
+        draw.line([(x+4, y+4), (x+4, y+2)], fill=color, width=1)  # Hour hand
+        draw.line([(x+4, y+4), (x+6, y+4)], fill=color, width=1)  # Minute hand
+    
     def display(self):
         """Display weather with rich visuals and large text."""
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Updating Weather screen...")
@@ -579,7 +603,7 @@ class WeatherScreen(BaseScreen):
                     font_header = font_temp = font_large = font_medium = font_small = ImageFont.load_default()
             
             # Header with location
-            header_text = f"⛅ {self.city_name.upper()}"
+            header_text = f"WEATHER - {self.city_name.upper()}"
             if font_header:
                 # Text shadow for better visibility
                 draw.text((42, 22), header_text, fill=(0, 0, 0, 100), font=font_header)
@@ -611,11 +635,19 @@ class WeatherScreen(BaseScreen):
             wind_speed = current.get("windspeed", 0)
             
             if font_medium:
-                # Create colorful condition indicators
-                draw.text((60, conditions_y), f"💧 Humidity: {humidity}%", fill=theme["text_color"], font=font_medium)
-                draw.text((60, conditions_y + 25), f"💨 Wind: {wind_speed} mph", fill=theme["text_color"], font=font_medium)
+                # Create colorful condition indicators with simple icons
+                # Draw humidity icon (water drop shape)
+                self.draw_water_drop(draw, 40, conditions_y + 5, theme["text_color"])
+                draw.text((60, conditions_y), f"Humidity: {humidity}%", fill=theme["text_color"], font=font_medium)
+                
+                # Draw wind icon (arrow shape)
+                self.draw_wind_arrow(draw, 40, conditions_y + 30, theme["text_color"])
+                draw.text((60, conditions_y + 25), f"Wind: {wind_speed} mph", fill=theme["text_color"], font=font_medium)
+                
+                # Draw clock icon (circle with hands)
+                self.draw_clock_icon(draw, 40, conditions_y + 55, theme["text_color"])
                 current_time = datetime.now().strftime("%I:%M %p")
-                draw.text((60, conditions_y + 50), f"🕒 Updated: {current_time}", fill=theme["text_color"], font=font_medium)
+                draw.text((60, conditions_y + 50), f"Updated: {current_time}", fill=theme["text_color"], font=font_medium)
             
             # 5-Day forecast with larger cards
             forecast_y = 260

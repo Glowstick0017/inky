@@ -219,7 +219,7 @@ class StarmapScreen(BaseScreen):
                     font_title = font_large = font_medium = font_small = ImageFont.load_default()
             
             # Draw title
-            title = "⭐ NIGHT SKY CHART"
+            title = "NIGHT SKY CHART"
             if font_title:
                 bbox = draw.textbbox((0, 0), title, font=font_title)
                 title_width = bbox[2] - bbox[0]
@@ -259,7 +259,7 @@ class StarmapScreen(BaseScreen):
             
             # Moon phase and other info
             if font_large:
-                moon_text = f"🌙 Moon: {star_data.get('moon_phase', 'Unknown')}"
+                moon_text = f"Moon: {star_data.get('moon_phase', 'Unknown')}"
                 draw.text((21, info_y + 11), moon_text, fill=(0, 0, 0), font=font_large)
                 draw.text((20, info_y + 10), moon_text, fill=(255, 255, 200), font=font_large)
             
@@ -267,12 +267,12 @@ class StarmapScreen(BaseScreen):
                 # Sunrise/sunset info
                 sunrise = star_data.get("sunrise", "N/A")
                 sunset = star_data.get("sunset", "N/A")
-                sun_info = f"☀️ Sunrise: {sunrise} | Sunset: {sunset}"
+                sun_info = f"Sunrise: {sunrise} | Sunset: {sunset}"
                 draw.text((21, info_y + 36), sun_info, fill=(0, 0, 0), font=font_medium)
                 draw.text((20, info_y + 35), sun_info, fill=(255, 200, 100), font=font_medium)
                 
                 # Location info
-                location_text = "📍 Phoenix, Arizona"
+                location_text = "Location: Phoenix, Arizona"
                 draw.text((21, info_y + 56), location_text, fill=(0, 0, 0), font=font_medium)
                 draw.text((20, info_y + 55), location_text, fill=(150, 255, 150), font=font_medium)
             

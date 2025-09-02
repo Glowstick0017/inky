@@ -41,6 +41,13 @@ class SystemScreen(BaseScreen):
             "high": 85,      # 70-85% - orange
             "critical": 95   # Above 95% - red
         }
+        
+        self.disk_thresholds = {
+            "low": 50,       # Below 50% - green
+            "medium": 70,    # 50-70% - yellow
+            "high": 85,      # 70-85% - orange
+            "critical": 95   # Above 95% - red
+        }
     
     def get_system_stats(self):
         """Gather comprehensive system statistics."""
@@ -248,7 +255,7 @@ class SystemScreen(BaseScreen):
                     font_title = font_large = font_medium = font_small = ImageFont.load_default()
             
             # Title
-            title = f"⚙️ SYSTEM DASHBOARD - {stats['hostname'].upper()}"
+            title = f"SYSTEM DASHBOARD - {stats['hostname'].upper()}"
             if font_title:
                 bbox = draw.textbbox((0, 0), title, font=font_title)
                 title_width = bbox[2] - bbox[0]
@@ -259,7 +266,7 @@ class SystemScreen(BaseScreen):
             # Current time and uptime
             current_time = datetime.now().strftime("%I:%M:%S %p")
             uptime_str = self.format_uptime(stats["uptime"])
-            time_text = f"🕒 {current_time} | ⏱️ Uptime: {uptime_str}"
+            time_text = f"Time: {current_time} | Uptime: {uptime_str}"
             if font_medium:
                 bbox = draw.textbbox((0, 0), time_text, font=font_medium)
                 time_width = bbox[2] - bbox[0]
@@ -271,7 +278,7 @@ class SystemScreen(BaseScreen):
             cpu_color = self.get_metric_color(stats["cpu_percent"], self.cpu_thresholds)
             
             if font_large:
-                cpu_text = f"🔥 CPU: {stats['cpu_percent']:.1f}%"
+                cpu_text = f"CPU: {stats['cpu_percent']:.1f}%"
                 draw.text((21, y_pos + 1), cpu_text, fill=(0, 0, 0), font=font_large)
                 draw.text((20, y_pos), cpu_text, fill=cpu_color, font=font_large)
             
@@ -289,7 +296,7 @@ class SystemScreen(BaseScreen):
             memory_total_gb = stats["memory_total"] / (1024**3)
             
             if font_large:
-                memory_text = f"💾 RAM: {stats['memory_percent']:.1f}%"
+                memory_text = f"RAM: {stats['memory_percent']:.1f}%"
                 draw.text((21, y_pos + 1), memory_text, fill=(0, 0, 0), font=font_large)
                 draw.text((20, y_pos), memory_text, fill=memory_color, font=font_large)
             
@@ -305,7 +312,7 @@ class SystemScreen(BaseScreen):
             temp_color = self.get_metric_color(stats["temperature"], self.temp_thresholds)
             
             if font_large:
-                temp_text = f"🌡️ TEMP: {stats['temperature']:.1f}°C"
+                temp_text = f"TEMP: {stats['temperature']:.1f}C"
                 draw.text((21, y_pos + 1), temp_text, fill=(0, 0, 0), font=font_large)
                 draw.text((20, y_pos), temp_text, fill=temp_color, font=font_large)
             
@@ -318,10 +325,10 @@ class SystemScreen(BaseScreen):
             
             # Disk Usage Section
             y_pos += 35
-            disk_color = self.get_metric_color(stats["disk_percent"], self.memory_thresholds)
+            disk_color = self.get_metric_color(stats["disk_percent"], self.disk_thresholds)
             
             if font_large:
-                disk_text = f"💿 DISK: {stats['disk_percent']:.1f}%"
+                disk_text = f"DISK: {stats['disk_percent']:.1f}%"
                 draw.text((21, y_pos + 1), disk_text, fill=(0, 0, 0), font=font_large)
                 draw.text((20, y_pos), disk_text, fill=disk_color, font=font_large)
             
@@ -335,18 +342,18 @@ class SystemScreen(BaseScreen):
             # Network and Process Info
             y_pos += 40
             if font_medium:
-                network_text = f"📡 Network: ↑{self.format_bytes(stats['bytes_sent'])} ↓{self.format_bytes(stats['bytes_recv'])}"
+                network_text = f"Network: ↑{self.format_bytes(stats['bytes_sent'])} ↓{self.format_bytes(stats['bytes_recv'])}"
                 draw.text((21, y_pos + 1), network_text, fill=(0, 0, 0), font=font_medium)
                 draw.text((20, y_pos), network_text, fill=(100, 255, 150), font=font_medium)
                 
-                process_text = f"⚡ Processes: {stats['process_count']}"
+                process_text = f"Processes: {stats['process_count']}"
                 draw.text((21, y_pos + 21), process_text, fill=(0, 0, 0), font=font_medium)
                 draw.text((20, y_pos + 20), process_text, fill=(255, 200, 100), font=font_medium)
             
             # System Info Footer
             y_pos = 350
             if font_small:
-                kernel_text = f"🐧 Kernel: {stats['kernel']}"
+                kernel_text = f"Kernel: {stats['kernel']}"
                 draw.text((21, y_pos + 1), kernel_text, fill=(0, 0, 0), font=font_small)
                 draw.text((20, y_pos), kernel_text, fill=(150, 150, 200), font=font_small)
                 

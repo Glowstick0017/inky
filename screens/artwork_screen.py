@@ -92,10 +92,11 @@ class ArtworkScreen(BaseScreen):
             'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Edvard_Munch%2C_1893%2C_The_Scream%2C_oil%2C_tempera_and_pastel_on_cardboard%2C_91_x_73_cm%2C_National_Gallery_of_Norway.jpg/687px-Edvard_Munch%2C_1893%2C_The_Scream%2C_oil%2C_tempera_and_pastel_on_cardboard%2C_91_x_73_cm%2C_National_Gallery_of_Norway.jpg'
         ]
     
-    def get_unsplash_artwork(self):
+    def get_unsplash_artwork(self, keyword=None):
         """Get high-quality artwork from Unsplash (no API key needed for basic usage)."""
         try:
-            keyword = random.choice(self.artwork_keywords)
+            if keyword is None:
+                keyword = random.choice(self.artwork_keywords)
             url = "https://api.unsplash.com/photos/random"
             params = {
                 'query': keyword,
@@ -124,10 +125,11 @@ class ArtworkScreen(BaseScreen):
             print(f"Error fetching from Unsplash: {e}")
         return None
     
-    def get_wikimedia_artwork(self):
+    def get_wikimedia_artwork(self, keyword=None):
         """Get artwork from Wikimedia Commons."""
         try:
-            keyword = random.choice(self.artwork_keywords)
+            if keyword is None:
+                keyword = random.choice(self.artwork_keywords)
             params = {
                 'action': 'query',
                 'format': 'json',
@@ -229,6 +231,40 @@ class ArtworkScreen(BaseScreen):
         except:
             return None
     
+    def fetch_quote(self):
+        """Fetch an inspiring quote from multiple sources."""
+        try:
+            # Try to fetch from quote APIs
+            for source in self.quote_sources:
+                try:
+                    response = requests.get(source['url'], timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        
+                        if source['name'] == 'Quotable':
+                            quote_text = data.get('content', '')
+                            author = data.get('author', 'Unknown')
+                            if len(quote_text) <= source['max_length']:
+                                return {'text': quote_text, 'author': author}
+                        
+                        elif source['name'] == 'ZenQuotes':
+                            if isinstance(data, list) and len(data) > 0:
+                                quote_data = data[0]
+                                quote_text = quote_data.get('q', '')
+                                author = quote_data.get('a', 'Unknown')
+                                if len(quote_text) <= source['max_length']:
+                                    return {'text': quote_text, 'author': author}
+                
+                except Exception as e:
+                    print(f"Error fetching from {source['name']}: {e}")
+                    continue
+        
+        except Exception as e:
+            print(f"Error in fetch_quote: {e}")
+        
+        # Return fallback quote if all APIs fail
+        return random.choice(self.fallback_quotes)
+    
     def display(self):
         """Display full-screen artwork with an inspiring quote overlay."""
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Updating Artwork + Quote screen...")
@@ -261,7 +297,13 @@ class ArtworkScreen(BaseScreen):
             
             if not artwork_data:
                 print("Using fallback artwork")
-                artwork_data = random.choice(self.fallback_images)
+                artwork_data = {
+                    'title': 'Classic Masterpiece',
+                    'artist': 'Master Artist', 
+                    'source': 'Classic Collection',
+                    'image_url': random.choice(self.fallback_images),
+                    'color': '#6A5ACD'
+                }
             
             # Get fresh quote
             quote_data = self.fetch_quote()
@@ -347,7 +389,7 @@ class ArtworkScreen(BaseScreen):
             draw.text((x, y), line, fill=(255, 255, 255), font=font_quote)
         
         # Draw author with elegant styling
-        author_text = f"— {quote_data['author']}"
+        author_text = f"- {quote_data['author']}"
         author_y = start_y + len(quote_lines) * line_height + 15
         bbox = draw.textbbox((0, 0), author_text, font=font_author)
         text_width = bbox[2] - bbox[0]
