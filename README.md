@@ -6,25 +6,31 @@ An interactive 4-screen dashboard system for the Pimoroni Inky Impression 4" e-i
 
 ## Screens
 
-**Button A: Classical Artwork**
-- Rotating classical artwork from the Metropolitan Museum of Art
-- Updates every 5 minutes
-- Displays artwork title, artist, and date
+**Button A: Artwork + Quotes**
+- Beautiful artwork paired with inspiring quotes
+- Rotating artwork from multiple sources (Unsplash, Wikimedia)
+- Elegant quote overlay with large, readable typography
+- Updates every 5 minutes with fresh content
 
-**Button B: Daily Quotes**
-- Daily inspirational quotes with decorative styling
-- Updates every hour
-- Multiple API sources with fallback content
+**Button B: Weather Forecast**
+- Rich, colorful weather display with theme-based backgrounds
+- Current conditions and 5-day forecast for Phoenix, AZ
+- Comprehensive weather icons for all conditions
+- Updates every 15 minutes using Open-Meteo API
 
-**Button C: Phoenix Arizona News**
-- Local news headlines from Phoenix area using RSS feeds
+**Button C: Star Chart**
+- Interactive night sky view with constellations and planets
+- Real-time astronomy data for current viewing conditions
+- Major constellations with connecting lines and labels
+- Visible planets with distinctive markers and labels
 - Updates every 30 minutes
-- No API key required - uses Google News and local RSS feeds
 
-**Button D: Weather Forecast**
-- Current weather and 5-day forecast for Phoenix, AZ
-- Updates every 15 minutes
-- Uses Open-Meteo API (no key required)
+**Button D: System Dashboard**
+- Real-time Raspberry Pi system monitoring
+- CPU usage, memory, temperature, disk space
+- Network statistics and process count
+- Color-coded metrics with progress bars
+- Updates every 60 seconds
 
 ## Requirements
 
@@ -34,9 +40,9 @@ An interactive 4-screen dashboard system for the Pimoroni Inky Impression 4" e-i
 
 ## Quick Start
 
-1. Install minimal dependencies:
+1. Install dependencies:
    ```bash
-   pip3 install requests Pillow
+   pip3 install requests Pillow psutil
    ```
 
 2. Configure your location in `config.py`

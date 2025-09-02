@@ -3,6 +3,7 @@
 
 requests>=2.25.0
 Pillow>=8.0.0
+psutil>=5.8.0
 
 # Note: The following are pre-installed on Raspberry Pi with Inky setup:
 # - inky (Pimoroni Inky library)

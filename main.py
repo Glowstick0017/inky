@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Inky Impression 4 Dashboard
-A 4-screen dashboard system controlled by the 4 buttons:
-- Button A: Classical Artwork (rotates every 5 minutes)
-- Button B: Daily Quotes with art
-- Button C: Phoenix Arizona News
-- Button D: Weather Forecast
+A 4-screen dashboard system controlled by buttons:
+- Button A: Artwork with Inspiring Quotes (rotates every 5 minutes)
+- Button B: Weather Forecast
+- Button C: Star Chart / Night Sky View
+- Button D: System Dashboard (CPU, Memory, Temperature)
 
 Each button switches to its respective screen and starts its update cycle.
 """
@@ -23,9 +23,9 @@ from gpiod.line import Bias, Direction, Edge
 try:
     import config  # Import configuration
     from screens.artwork_screen import ArtworkScreen
-    from screens.quotes_screen import QuotesScreen
-    from screens.news_screen import NewsScreen
     from screens.weather_screen import WeatherScreen
+    from screens.starmap_screen import StarmapScreen
+    from screens.system_screen import SystemScreen
 except ImportError as e:
     print(f"Error importing screen modules: {e}")
     print("Make sure you're running from the dashboard directory")
@@ -42,19 +42,19 @@ class InkyDashboard:
         self.screen_thread = None
         self.stop_event = threading.Event()
         
-        # Initialize screens
+        # Initialize all 4 screens
         self.screens = {
-            "A": ArtworkScreen(),
-            "B": QuotesScreen(), 
-            "C": NewsScreen(),
-            "D": WeatherScreen()
+            "artwork": ArtworkScreen(),     # Artwork + Quotes
+            "weather": WeatherScreen(),     # Weather Forecast
+            "starmap": StarmapScreen(),     # Star Chart
+            "system": SystemScreen()        # System Dashboard
         }
         
         # Setup GPIO for buttons
         self.setup_buttons()
         
         # Start with artwork screen by default
-        self.switch_screen(config.DEFAULT_SCREEN)
+        self.switch_screen("artwork")
     
     def setup_buttons(self):
         """Setup GPIO buttons for screen switching."""
@@ -77,7 +77,20 @@ class InkyDashboard:
             label = LABELS[index]
             
             print(f"Button {label} pressed (GPIO #{gpio_number})")
-            self.switch_screen(label)
+            
+            # Map buttons to 4 screens:
+            # Button A -> Artwork + Quotes screen
+            # Button B -> Weather screen
+            # Button C -> Star Chart screen
+            # Button D -> System Dashboard screen
+            if label == "A":
+                self.switch_screen("artwork")
+            elif label == "B":
+                self.switch_screen("weather")
+            elif label == "C":
+                self.switch_screen("starmap")
+            elif label == "D":
+                self.switch_screen("system")
             
         except ValueError:
             print(f"Unknown button pressed: {event.line_offset}")
@@ -135,8 +148,11 @@ class InkyDashboard:
     def run(self):
         """Main loop to handle button presses."""
         print("Inky Impression 4 Dashboard started!")
-        print("Press buttons A, B, C, or D to switch screens")
-        print("Current screen: Artwork (A)")
+        print("Button A: Artwork + Quotes")
+        print("Button B: Weather Forecast") 
+        print("Button C: Star Chart")
+        print("Button D: System Dashboard")
+        print("Current screen: Artwork + Quotes")
         print("Press Ctrl+C to exit")
         
         try:

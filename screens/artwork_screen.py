@@ -1,7 +1,7 @@
 """
-Classical Artwork Screen
-Displays full-screen high-quality artwork from multiple sources
-Updates every 5 minutes with a new piece of art
+Artwork with Quotes Screen
+Displays full-screen high-quality artwork with inspiring quotes overlay
+Updates every 5 minutes with new artwork and quotes
 """
 
 import requests
@@ -18,6 +18,8 @@ class ArtworkScreen(BaseScreen):
         super().__init__()
         self.update_interval = config.ARTWORK_UPDATE_INTERVAL
         self.current_artwork = None
+        self.current_quote = None
+        self.artwork_rotation_index = 0  # Track artwork rotation
         
         # Multiple art sources for better variety
         self.art_sources = [
@@ -30,11 +32,6 @@ class ArtworkScreen(BaseScreen):
                 'name': 'Unsplash',
                 'type': 'unsplash', 
                 'search_url': 'https://api.unsplash.com/photos/random'
-            },
-            {
-                'name': 'Met Museum',
-                'type': 'met',
-                'base_url': 'https://collectionapi.metmuseum.org/public/collection/v1'
             }
         ]
         
@@ -43,7 +40,49 @@ class ArtworkScreen(BaseScreen):
             'classical painting', 'renaissance art', 'baroque painting', 'impressionist painting',
             'landscape painting', 'portrait painting', 'still life painting', 'abstract art',
             'modern art', 'contemporary art', 'sculpture', 'fine art photography',
-            'architectural photography', 'nature photography', 'minimalist art'
+            'architectural photography', 'nature photography', 'minimalist art', 'museum artwork'
+        ]
+        
+        # Quote sources for overlay
+        self.quote_sources = [
+            {
+                'name': 'Quotable',
+                'url': 'https://api.quotable.io/random',
+                'max_length': 150
+            },
+            {
+                'name': 'ZenQuotes',
+                'url': 'https://zenquotes.io/api/random',
+                'max_length': 150
+            }
+        ]
+        
+        # Inspiring fallback quotes
+        self.fallback_quotes = [
+            {
+                "text": "Art enables us to find ourselves and lose ourselves at the same time.",
+                "author": "Thomas Merton"
+            },
+            {
+                "text": "Every artist was first an amateur.",
+                "author": "Ralph Waldo Emerson"
+            },
+            {
+                "text": "Art is not what you see, but what you make others see.",
+                "author": "Edgar Degas"
+            },
+            {
+                "text": "The purpose of art is washing the dust of daily life off our souls.",
+                "author": "Pablo Picasso"
+            },
+            {
+                "text": "Art should comfort the disturbed and disturb the comfortable.",
+                "author": "Cesar A. Cruz"
+            },
+            {
+                "text": "Creativity takes courage.",
+                "author": "Henri Matisse"
+            }
         ]
         
         # Fallback high-quality images
@@ -191,11 +230,11 @@ class ArtworkScreen(BaseScreen):
             return None
     
     def display(self):
-        """Display full-screen high-quality artwork."""
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Updating Artwork screen...")
+        """Display full-screen artwork with an inspiring quote overlay."""
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Updating Artwork + Quote screen...")
         
         try:
-            # Try different sources for artwork
+            # Get fresh artwork (cycles through keywords for variety)
             artwork_data = None
             sources_to_try = [
                 self.get_unsplash_artwork,
@@ -203,9 +242,17 @@ class ArtworkScreen(BaseScreen):
                 self.get_artwork_from_fallback
             ]
             
+            # Cycle through keywords to ensure variety
+            keyword = self.artwork_keywords[self.artwork_rotation_index % len(self.artwork_keywords)]
+            self.artwork_rotation_index += 1
+            print(f"Searching for artwork with keyword: {keyword}")
+            
             for source_func in sources_to_try:
                 try:
-                    artwork_data = source_func()
+                    if source_func.__name__ == 'get_artwork_from_fallback':
+                        artwork_data = source_func()
+                    else:
+                        artwork_data = source_func(keyword)
                     if artwork_data and artwork_data.get('image_url'):
                         break
                 except Exception as e:
@@ -213,18 +260,16 @@ class ArtworkScreen(BaseScreen):
                     continue
             
             if not artwork_data:
-                print("Could not fetch any artwork, creating fallback")
-                artwork_data = {
-                    'title': 'Art Gallery',
-                    'artist': 'Dashboard',
-                    'source': 'Internal',
-                    'image_url': None,
-                    'color': '#6A5ACD'
-                }
+                print("Using fallback artwork")
+                artwork_data = random.choice(self.fallback_images)
+            
+            # Get fresh quote
+            quote_data = self.fetch_quote()
+            self.current_quote = quote_data
             
             # Download and process the artwork
             if artwork_data.get('image_url'):
-                print(f"Displaying: {artwork_data['title']} by {artwork_data['artist']}")
+                print(f"Displaying artwork with quote by {quote_data['author']}")
                 artwork_image = self.download_and_resize_artwork(artwork_data['image_url'])
             else:
                 artwork_image = None
@@ -233,80 +278,119 @@ class ArtworkScreen(BaseScreen):
             if not artwork_image:
                 artwork_image = self.create_fallback_artwork(artwork_data)
             
-            # Create overlay for text (bottom portion)
-            overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
-            overlay_draw = ImageDraw.Draw(overlay)
+            # Create elegant quote overlay
+            display_image = self.add_quote_overlay(artwork_image, quote_data)
             
-            # Create gradient overlay at bottom for text
-            for y in range(320, 400):  # Bottom 80 pixels
-                alpha = int(180 * ((y - 320) / 80))  # Gradient from 0 to 180 alpha
-                overlay_draw.rectangle([(0, y), (640, y+1)], fill=(0, 0, 0, alpha))
+            # Store current artwork
+            self.current_artwork = artwork_data
             
-            # Composite the overlay onto the artwork
-            display_image = Image.alpha_composite(artwork_image.convert('RGBA'), overlay)
-            display_image = display_image.convert('RGB')
-            
-            # Add text information with better typography
-            draw = ImageDraw.Draw(display_image)
-            
-            try:
-                # Try to load better fonts if available, otherwise use default
-                font_large = ImageFont.load_default()
-                font_medium = ImageFont.load_default() 
-                font_small = ImageFont.load_default()
-            except:
-                font_large = font_medium = font_small = None
-            
-            # Draw title (large, white text at bottom)
-            title = artwork_data.get('title', 'Untitled')
-            if len(title) > 35:
-                title = title[:32] + "..."
-                
-            if font_large:
-                bbox = draw.textbbox((0, 0), title, font=font_large)
-                text_width = bbox[2] - bbox[0]
-                x = 20
-                y = 340
-                # Add shadow effect
-                draw.text((x+2, y+2), title, fill=(0, 0, 0), font=font_large)
-                draw.text((x, y), title, fill=(255, 255, 255), font=font_large)
-            
-            # Draw artist and source
-            artist_text = artwork_data.get('artist', 'Unknown Artist')
-            source_text = artwork_data.get('source', '')
-            info_text = f"{artist_text}"
-            if source_text:
-                info_text += f" • {source_text}"
-                
-            if len(info_text) > 50:
-                info_text = info_text[:47] + "..."
-                
-            if font_medium:
-                x = 20
-                y = 365
-                # Add shadow effect
-                draw.text((x+1, y+1), info_text, fill=(0, 0, 0), font=font_medium)
-                draw.text((x, y), info_text, fill=(200, 200, 200), font=font_medium)
-            
-            # Display timestamp in corner
-            timestamp = datetime.now().strftime("%H:%M")
-            if font_small:
-                bbox = draw.textbbox((0, 0), timestamp, font=font_small)
-                text_width = bbox[2] - bbox[0]
-                x = 640 - text_width - 20
-                y = 370
-                draw.text((x+1, y+1), timestamp, fill=(0, 0, 0), font=font_small)
-                draw.text((x, y), timestamp, fill=(150, 150, 150), font=font_small)
-            
-            # Display the final image
+            # Display the combined artwork + quote
             self.inky.set_image(display_image)
             self.inky.show()
-            
-            self.current_artwork = artwork_data
             
         except Exception as e:
             print(f"Error displaying artwork: {e}")
             self.display_error_message("Artwork Error", str(e))
+    
+    def add_quote_overlay(self, artwork_image, quote_data):
+        """Add elegant quote overlay to artwork."""
+        # Create overlay for quote (bottom portion)
+        overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
+        overlay_draw = ImageDraw.Draw(overlay)
+        
+        # Create elegant gradient overlay at bottom for quote
+        for y in range(280, 400):  # Bottom 120 pixels for quote
+            alpha = int(160 * ((y - 280) / 120))  # Gradient from 0 to 160 alpha
+            overlay_draw.rectangle([(0, y), (640, y+1)], fill=(0, 0, 0, alpha))
+        
+        # Add subtle border at top of quote area
+        overlay_draw.rectangle([(0, 280), (640, 282)], fill=(255, 255, 255, 100))
+        
+        # Composite the overlay onto the artwork
+        display_image = Image.alpha_composite(artwork_image.convert('RGBA'), overlay)
+        display_image = display_image.convert('RGB')
+        
+        # Add quote text with elegant typography
+        draw = ImageDraw.Draw(display_image)
+        
+        try:
+            # Try to load large, readable fonts
+            font_quote = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf", 18)
+            font_author = ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf", 16)
+        except:
+            try:
+                font_quote = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+                font_author = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf", 16)
+            except:
+                font_quote = font_author = ImageFont.load_default()
+        
+        # Wrap and draw quote text
+        quote_text = quote_data['text']
+        max_width = 580  # Leave margins
+        quote_lines = self.wrap_text_for_quote(quote_text, font_quote, max_width, 4)
+        
+        # Center the quote vertically in the overlay area
+        line_height = 22
+        total_text_height = len(quote_lines) * line_height + 30  # Include author space
+        start_y = 290 + (110 - total_text_height) // 2
+        
+        # Draw quote text with elegant styling
+        for i, line in enumerate(quote_lines):
+            y = start_y + (i * line_height)
+            bbox = draw.textbbox((0, 0), line, font=font_quote)
+            text_width = bbox[2] - bbox[0]
+            x = (640 - text_width) // 2
+            
+            # Add subtle text shadow for better readability
+            draw.text((x + 1, y + 1), line, fill=(0, 0, 0, 200), font=font_quote)
+            # Main quote text in white
+            draw.text((x, y), line, fill=(255, 255, 255), font=font_quote)
+        
+        # Draw author with elegant styling
+        author_text = f"— {quote_data['author']}"
+        author_y = start_y + len(quote_lines) * line_height + 15
+        bbox = draw.textbbox((0, 0), author_text, font=font_author)
+        text_width = bbox[2] - bbox[0]
+        x = (640 - text_width) // 2
+        
+        # Author shadow and text
+        draw.text((x + 1, author_y + 1), author_text, fill=(0, 0, 0, 200), font=font_author)
+        draw.text((x, author_y), author_text, fill=(255, 255, 255), font=font_author)
+        
+        return display_image
+    
+    def wrap_text_for_quote(self, text, font, max_width, max_lines=4):
+        """Wrap text for quote display with proper line breaks."""
+        words = text.split()
+        lines = []
+        current_line = []
+        
+        # Create temporary image for text measurement
+        temp_img = Image.new('RGB', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_img)
+        
+        for word in words:
+            test_line = ' '.join(current_line + [word])
+            bbox = temp_draw.textbbox((0, 0), test_line, font=font)
+            text_width = bbox[2] - bbox[0]
+            
+            if text_width <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                    if len(lines) >= max_lines:
+                        break
+                    current_line = [word]
+                else:
+                    lines.append(word)
+                    if len(lines) >= max_lines:
+                        break
+        
+        if current_line and len(lines) < max_lines:
+            lines.append(' '.join(current_line))
+        
+        return lines[:max_lines]
     
     def create_fallback_artwork(self, artwork_data):
         """Create a beautiful fallback artwork when images can't be loaded."""

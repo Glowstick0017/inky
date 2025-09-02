@@ -65,7 +65,41 @@ class WeatherScreen(BaseScreen):
                 "text_color": (47, 79, 79)
             },
             
-            # Rainy - deep blue theme
+            # Fog - soft gray-blue theme
+            45: {
+                "gradient": [(176, 196, 222), (169, 169, 169), (128, 128, 128)],
+                "accent": (255, 255, 255),
+                "pattern_color": (255, 255, 255),
+                "text_color": (47, 79, 79)
+            },
+            48: {
+                "gradient": [(176, 196, 222), (169, 169, 169), (128, 128, 128)],
+                "accent": (255, 255, 255),
+                "pattern_color": (255, 255, 255),
+                "text_color": (47, 79, 79)
+            },
+            
+            # Drizzle - light blue theme
+            51: {
+                "gradient": [(173, 216, 230), (135, 206, 235), (100, 149, 237)],
+                "accent": (255, 255, 255),
+                "pattern_color": (255, 255, 255),
+                "text_color": (25, 25, 112)
+            },
+            53: {
+                "gradient": [(173, 216, 230), (135, 206, 235), (100, 149, 237)],
+                "accent": (255, 255, 255),
+                "pattern_color": (255, 255, 255),
+                "text_color": (25, 25, 112)
+            },
+            55: {
+                "gradient": [(173, 216, 230), (135, 206, 235), (100, 149, 237)],
+                "accent": (255, 255, 255),
+                "pattern_color": (255, 255, 255),
+                "text_color": (25, 25, 112)
+            },
+            
+            # Rain - deep blue theme
             61: {
                 "gradient": [(25, 25, 112), (70, 130, 180), (100, 149, 237)],
                 "accent": (255, 255, 255),
@@ -74,6 +108,46 @@ class WeatherScreen(BaseScreen):
             },
             63: {
                 "gradient": [(0, 0, 139), (25, 25, 112), (70, 130, 180)],
+                "accent": (255, 255, 255),
+                "pattern_color": (173, 216, 230),
+                "text_color": (255, 255, 255)
+            },
+            65: {
+                "gradient": [(0, 0, 139), (25, 25, 112), (70, 130, 180)],
+                "accent": (255, 255, 255),
+                "pattern_color": (173, 216, 230),
+                "text_color": (255, 255, 255)
+            },
+            
+            # Snow - cool white-blue theme
+            71: {
+                "gradient": [(240, 248, 255), (220, 220, 220), (176, 196, 222)],
+                "accent": (100, 149, 237),
+                "pattern_color": (255, 255, 255),
+                "text_color": (25, 25, 112)
+            },
+            73: {
+                "gradient": [(240, 248, 255), (220, 220, 220), (176, 196, 222)],
+                "accent": (100, 149, 237),
+                "pattern_color": (255, 255, 255),
+                "text_color": (25, 25, 112)
+            },
+            75: {
+                "gradient": [(240, 248, 255), (220, 220, 220), (176, 196, 222)],
+                "accent": (100, 149, 237),
+                "pattern_color": (255, 255, 255),
+                "text_color": (25, 25, 112)
+            },
+            
+            # Showers - bright blue theme
+            80: {
+                "gradient": [(30, 144, 255), (65, 105, 225), (100, 149, 237)],
+                "accent": (255, 255, 255),
+                "pattern_color": (173, 216, 230),
+                "text_color": (255, 255, 255)
+            },
+            81: {
+                "gradient": [(30, 144, 255), (65, 105, 225), (100, 149, 237)],
                 "accent": (255, 255, 255),
                 "pattern_color": (173, 216, 230),
                 "text_color": (255, 255, 255)
@@ -141,10 +215,40 @@ class WeatherScreen(BaseScreen):
         
         return self.fallback_weather
     
+    def get_weather_theme(self, weather_code):
+        """Get weather theme with fallback for unknown codes."""
+        # Check if we have a specific theme for this weather code
+        if weather_code in self.weather_themes:
+            return self.weather_themes[weather_code]
+        
+        # Fallback themes based on weather type
+        fallback_themes = {
+            # Clear conditions (0-9)
+            range(0, 10): self.weather_themes[0],
+            # Cloudy conditions (10-49) 
+            range(10, 50): self.weather_themes[3],
+            # Drizzle/Rain conditions (50-69)
+            range(50, 70): self.weather_themes[61],
+            # Snow conditions (70-79)
+            range(70, 80): self.weather_themes.get(71, self.weather_themes[3]),
+            # Showers (80-89)
+            range(80, 90): self.weather_themes.get(80, self.weather_themes[61]),
+            # Thunderstorms (90-99)
+            range(90, 100): self.weather_themes[95]
+        }
+        
+        # Find appropriate fallback theme
+        for code_range, theme in fallback_themes.items():
+            if weather_code in code_range:
+                return theme
+        
+        # Ultimate fallback - cloudy theme
+        return self.weather_themes[3]
+
     def create_weather_background(self, weather_code):
         """Create rich, colorful weather-themed background."""
-        # Get theme or default to clear sky
-        theme = self.weather_themes.get(weather_code, self.weather_themes[0])
+        # Get theme with intelligent fallback
+        theme = self.get_weather_theme(weather_code)
         
         image = Image.new("RGB", (640, 400), theme["gradient"][0])
         draw = ImageDraw.Draw(image)
@@ -182,9 +286,10 @@ class WeatherScreen(BaseScreen):
         if weather_code in [0, 1]:  # Clear/sunny
             # Large sun with detailed rays
             sun_x, sun_y = 500, 80
-            # Sun body
+            # Sun body with gradient effect
             draw.ellipse([sun_x-30, sun_y-30, sun_x+30, sun_y+30], fill=(255, 215, 0))
             draw.ellipse([sun_x-25, sun_y-25, sun_x+25, sun_y+25], fill=(255, 255, 0))
+            draw.ellipse([sun_x-15, sun_y-15, sun_x+15, sun_y+15], fill=(255, 255, 200))
             
             # Detailed sun rays
             for angle in range(0, 360, 15):
@@ -205,47 +310,115 @@ class WeatherScreen(BaseScreen):
                 draw.line([(x1, y1), (x2, y2)], fill=pattern_color, width=2)
         
         elif weather_code in [2, 3]:  # Cloudy
-            # Multiple detailed clouds
+            # Multiple detailed clouds with varying sizes
             cloud_positions = [(120, 60), (350, 80), (520, 70)]
-            for x, y in cloud_positions:
-                self.draw_detailed_cloud(draw, x, y, pattern_color)
+            cloud_sizes = [1.0, 1.2, 0.8]
+            for i, (x, y) in enumerate(cloud_positions):
+                self.draw_detailed_cloud(draw, x, y, pattern_color, scale=cloud_sizes[i])
+        
+        elif weather_code in [45, 48]:  # Fog
+            # Fog layers with horizontal waves
+            for y in range(100, 200, 15):
+                for x in range(0, 640, 30):
+                    draw.ellipse([x, y, x+25, y+8], fill=(*pattern_color[:3], 100))
+            
+        elif weather_code in [51, 53, 55]:  # Drizzle
+            # Light rain with smaller droplets
+            import random
+            random.seed(weather_code)  # Consistent pattern per condition
+            for _ in range(25):
+                x = random.randint(50, 590)
+                y = random.randint(120, 350)
+                # Small drizzle drops
+                draw.ellipse([x-1, y, x+1, y+8], fill=(135, 206, 235))
         
         elif weather_code in [61, 63, 65]:  # Rain
             # Rain clouds with droplets
-            self.draw_detailed_cloud(draw, 300, 60, (169, 169, 169))
+            self.draw_detailed_cloud(draw, 300, 60, (169, 169, 169), scale=1.3)
             
-            # Animated-style rain drops
+            # Animated-style rain drops with varying intensity
             import random
             random.seed(42)  # Consistent pattern
-            for _ in range(40):
+            drop_count = 30 if weather_code == 61 else 45 if weather_code == 63 else 60
+            for _ in range(drop_count):
                 x = random.randint(50, 590)
                 y = random.randint(120, 350)
                 # Rain drop shape
                 draw.ellipse([x-2, y, x+2, y+12], fill=(135, 206, 235))
                 draw.ellipse([x-1, y+10, x+1, y+14], fill=(100, 149, 237))
         
+        elif weather_code in [71, 73, 75]:  # Snow
+            # Snow clouds and snowflakes
+            self.draw_detailed_cloud(draw, 250, 50, (240, 248, 255), scale=1.2)
+            self.draw_detailed_cloud(draw, 450, 70, (220, 220, 220), scale=0.9)
+            
+            # Snowflakes
+            import random
+            random.seed(weather_code)
+            flake_count = 20 if weather_code == 71 else 35 if weather_code == 73 else 50
+            for _ in range(flake_count):
+                x = random.randint(50, 590)
+                y = random.randint(120, 350)
+                self.draw_snowflake(draw, x, y, pattern_color)
+        
+        elif weather_code in [80, 81]:  # Showers
+            # Shower clouds with heavy droplets
+            self.draw_detailed_cloud(draw, 200, 50, (105, 105, 105), scale=1.1)
+            self.draw_detailed_cloud(draw, 400, 60, (128, 128, 128), scale=1.0)
+            
+            # Heavy shower drops
+            import random
+            random.seed(weather_code)
+            for _ in range(40 if weather_code == 80 else 55):
+                x = random.randint(50, 590)
+                y = random.randint(120, 350)
+                # Larger shower drops
+                draw.ellipse([x-3, y, x+3, y+16], fill=(30, 144, 255))
+                draw.ellipse([x-2, y+12, x+2, y+18], fill=(65, 105, 225))
+        
         elif weather_code == 95:  # Thunderstorm
             # Dramatic storm clouds
-            self.draw_detailed_cloud(draw, 200, 50, (105, 105, 105))
-            self.draw_detailed_cloud(draw, 400, 70, (105, 105, 105))
+            self.draw_detailed_cloud(draw, 200, 50, (105, 105, 105), scale=1.4)
+            self.draw_detailed_cloud(draw, 400, 70, (105, 105, 105), scale=1.2)
             
             # Lightning bolts
             self.draw_lightning_bolt(draw, 250, 120, pattern_color)
             self.draw_lightning_bolt(draw, 450, 140, pattern_color)
+            
+            # Heavy rain
+            import random
+            random.seed(95)
+            for _ in range(35):
+                x = random.randint(50, 590)
+                y = random.randint(120, 350)
+                draw.ellipse([x-2, y, x+2, y+14], fill=(135, 206, 235))
     
-    def draw_detailed_cloud(self, draw, x, y, color):
-        """Draw a detailed, fluffy cloud."""
+    def draw_detailed_cloud(self, draw, x, y, color, scale=1.0):
+        """Draw a detailed, fluffy cloud with optional scaling."""
         # Multiple overlapping circles for realistic cloud shape
         cloud_parts = [
-            (x-20, y+5, 18), (x-5, y-5, 22), (x+10, y, 20),
-            (x+25, y+3, 18), (x+15, y+15, 16), (x-10, y+12, 15)
+            (x-20*scale, y+5*scale, 18*scale), (x-5*scale, y-5*scale, 22*scale), 
+            (x+10*scale, y, 20*scale), (x+25*scale, y+3*scale, 18*scale), 
+            (x+15*scale, y+15*scale, 16*scale), (x-10*scale, y+12*scale, 15*scale)
         ]
         
         for cx, cy, radius in cloud_parts:
             draw.ellipse([cx-radius, cy-radius, cx+radius, cy+radius], fill=color)
             # Add subtle highlight
+            highlight_color = (min(255, color[0]+20), min(255, color[1]+20), min(255, color[2]+20))
             draw.ellipse([cx-radius+3, cy-radius+2, cx+radius-3, cy+radius-8], 
-                        fill=(min(255, color[0]+20), min(255, color[1]+20), min(255, color[2]+20)))
+                        fill=highlight_color)
+    
+    def draw_snowflake(self, draw, x, y, color):
+        """Draw a detailed snowflake."""
+        # Main cross
+        draw.line([(x-4, y), (x+4, y)], fill=color, width=2)
+        draw.line([(x, y-4), (x, y+4)], fill=color, width=2)
+        # Diagonal lines
+        draw.line([(x-3, y-3), (x+3, y+3)], fill=color, width=1)
+        draw.line([(x-3, y+3), (x+3, y-3)], fill=color, width=1)
+        # Center dot
+        draw.ellipse([x-1, y-1, x+1, y+1], fill=color)
     
     def draw_lightning_bolt(self, draw, start_x, start_y, color):
         """Draw a dramatic lightning bolt."""
@@ -263,16 +436,17 @@ class WeatherScreen(BaseScreen):
             draw.line([points[i], points[i+1]], fill=(255, 255, 255), width=2)
     
     def create_weather_icon_large(self, weather_code, size=60):
-        """Create large, detailed weather icons."""
+        """Create large, detailed weather icons for all weather conditions."""
         icon = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(icon)
         
         center = size // 2
         
-        if weather_code in [0, 1]:  # Sunny
-            # Large sun
+        if weather_code in [0, 1]:  # Sunny/Clear
+            # Large sun with rays
             draw.ellipse([center-20, center-20, center+20, center+20], fill=(255, 215, 0))
             draw.ellipse([center-15, center-15, center+15, center+15], fill=(255, 255, 0))
+            draw.ellipse([center-8, center-8, center+8, center+8], fill=(255, 255, 200))
             # Sun rays
             for angle in range(0, 360, 45):
                 rad = math.radians(angle)
@@ -280,23 +454,96 @@ class WeatherScreen(BaseScreen):
                 y1 = center + 25 * math.sin(rad)
                 x2 = center + 35 * math.cos(rad)
                 y2 = center + 35 * math.sin(rad)
-                draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=4)
+                draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=3)
         
-        elif weather_code in [2, 3]:  # Cloudy
-            # Detailed cloud
-            draw.ellipse([center-25, center-5, center+5, center+15], fill=(169, 169, 169))
-            draw.ellipse([center-15, center-15, center+15, center+5], fill=(192, 192, 192))
+        elif weather_code in [2, 3]:  # Partly cloudy/Overcast
+            if weather_code == 2:  # Partly cloudy - sun behind cloud
+                # Small sun
+                draw.ellipse([center-25, center-20, center-5, center], fill=(255, 215, 0))
+                # Sun rays (partial)
+                for angle in range(180, 360, 30):
+                    rad = math.radians(angle)
+                    x1 = center-15 + 15 * math.cos(rad)
+                    y1 = center-10 + 15 * math.sin(rad)
+                    x2 = center-15 + 25 * math.cos(rad)
+                    y2 = center-10 + 25 * math.sin(rad)
+                    draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0), width=2)
+            
+            # Cloud
+            draw.ellipse([center-20, center-5, center+10, center+15], fill=(169, 169, 169))
+            draw.ellipse([center-10, center-15, center+20, center+5], fill=(192, 192, 192))
             draw.ellipse([center-5, center-10, center+25, center+10], fill=(169, 169, 169))
         
+        elif weather_code in [45, 48]:  # Fog
+            # Horizontal fog lines
+            for y_offset in range(-15, 20, 6):
+                draw.ellipse([center-20, center+y_offset-2, center+20, center+y_offset+2], 
+                           fill=(176, 196, 222))
+        
+        elif weather_code in [51, 53, 55]:  # Drizzle
+            # Small cloud
+            draw.ellipse([center-15, center-20, center+15, center-5], fill=(169, 169, 169))
+            # Light drizzle drops
+            for i in range(2):
+                x = center - 8 + i * 8
+                draw.line([(x, center), (x, center+12)], fill=(135, 206, 235), width=2)
+        
         elif weather_code in [61, 63, 65]:  # Rain
-            # Cloud with rain
-            draw.ellipse([center-20, center-20, center+20, center-5], fill=(105, 105, 105))
-            # Rain drops
+            # Cloud
+            draw.ellipse([center-18, center-20, center+18, center-5], fill=(105, 105, 105))
+            # Rain drops with varying intensity
+            drop_count = 3 if weather_code == 61 else 4 if weather_code == 63 else 5
+            for i in range(drop_count):
+                x = center - 12 + i * 6
+                drop_length = 12 if weather_code == 61 else 15 if weather_code == 63 else 18
+                draw.line([(x, center), (x, center+drop_length)], fill=(0, 100, 200), width=3)
+        
+        elif weather_code in [71, 73, 75]:  # Snow
+            # Snow cloud
+            draw.ellipse([center-18, center-20, center+18, center-5], fill=(220, 220, 220))
+            # Snowflakes
+            flake_count = 3 if weather_code == 71 else 4 if weather_code == 73 else 6
+            for i in range(flake_count):
+                x = center - 12 + i * 5
+                y = center + 2 + (i % 2) * 8
+                self.draw_mini_snowflake(draw, x, y)
+        
+        elif weather_code in [80, 81]:  # Showers
+            # Dark cloud
+            draw.ellipse([center-18, center-20, center+18, center-5], fill=(105, 105, 105))
+            # Heavy shower drops
+            drop_count = 4 if weather_code == 80 else 5
+            for i in range(drop_count):
+                x = center - 10 + i * 5
+                draw.ellipse([x-1, center+2+i*3, x+1, center+16+i*3], fill=(30, 144, 255))
+        
+        elif weather_code == 95:  # Thunderstorm
+            # Dark storm cloud
+            draw.ellipse([center-20, center-20, center+20, center-5], fill=(75, 75, 75))
+            # Lightning bolt
+            points = [(center-3, center), (center-8, center+8), (center, center+10), 
+                     (center-5, center+18)]
+            for i in range(len(points)-1):
+                draw.line([points[i], points[i+1]], fill=(255, 255, 0), width=3)
+            # Rain
             for i in range(3):
-                x = center - 10 + i * 10
-                draw.line([(x, center), (x, center+15)], fill=(0, 100, 200), width=3)
+                x = center - 6 + i * 6
+                draw.line([(x, center+5), (x, center+15)], fill=(0, 100, 200), width=2)
+        
+        else:  # Default/Unknown weather
+            # Generic cloud
+            draw.ellipse([center-15, center-10, center+15, center+10], fill=(169, 169, 169))
+            draw.text((center-5, center-5), "?", fill=(255, 255, 255))
         
         return icon
+    
+    def draw_mini_snowflake(self, draw, x, y):
+        """Draw a small snowflake for icons."""
+        # Simple snowflake
+        draw.line([(x-3, y), (x+3, y)], fill=(255, 255, 255), width=1)
+        draw.line([(x, y-3), (x, y+3)], fill=(255, 255, 255), width=1)
+        draw.line([(x-2, y-2), (x+2, y+2)], fill=(255, 255, 255), width=1)
+        draw.line([(x-2, y+2), (x+2, y-2)], fill=(255, 255, 255), width=1)
     
     def display(self):
         """Display weather with rich visuals and large text."""
