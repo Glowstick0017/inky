@@ -97,6 +97,9 @@ class InkyDashboard:
         # Clear stop event for new screen
         self.stop_event.clear()
         
+        # Add a small delay to ensure display is ready
+        time.sleep(0.1)
+        
         # Start new screen
         self.current_screen = screen_label
         screen = self.screens[screen_label]
@@ -146,6 +149,10 @@ class InkyDashboard:
             self.stop_event.set()
             if self.screen_thread and self.screen_thread.is_alive():
                 self.screen_thread.join(timeout=2.0)
+            
+            # Clean up the shared display
+            from screens.base_screen import BaseScreen
+            BaseScreen.cleanup_display()
 
 if __name__ == "__main__":
     try:
@@ -153,4 +160,10 @@ if __name__ == "__main__":
         dashboard.run()
     except Exception as e:
         print(f"Failed to start dashboard: {e}")
+        # Clean up the shared display even on error
+        try:
+            from screens.base_screen import BaseScreen
+            BaseScreen.cleanup_display()
+        except:
+            pass
         sys.exit(1)
