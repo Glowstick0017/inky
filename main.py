@@ -150,9 +150,8 @@ class InkyDashboard:
             if self.screen_thread and self.screen_thread.is_alive():
                 self.screen_thread.join(timeout=2.0)
             
-            # Clean up the shared display
-            from screens.base_screen import BaseScreen
-            BaseScreen.cleanup_display()
+            # Don't clear the screen - keep last display visible
+            print("Dashboard stopped. Screen will retain last display.")
 
 if __name__ == "__main__":
     try:
@@ -160,10 +159,5 @@ if __name__ == "__main__":
         dashboard.run()
     except Exception as e:
         print(f"Failed to start dashboard: {e}")
-        # Clean up the shared display even on error
-        try:
-            from screens.base_screen import BaseScreen
-            BaseScreen.cleanup_display()
-        except:
-            pass
+        # Don't clear the screen on error - keep display as is
         sys.exit(1)
