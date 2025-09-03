@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 from io import BytesIO
 from .base_screen import BaseScreen
 import config
-from font_manager import font_manager
+from font_utils import get_artwork_fonts, get_font
 
 # Disable SSL warnings for older systems
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -53,28 +53,35 @@ class ArtworkScreen(BaseScreen):
             }
         ]
         
-        # Refined search terms specifically for classical artwork and paintings
+        # Refined search terms specifically for landscape-oriented classical artwork
         self.artwork_keywords = [
-            # Classical art movements - paintings only
-            'oil painting impressionism', 'oil painting post-impressionism', 'renaissance painting', 
-            'baroque painting', 'romanticism painting', 'neoclassical painting',
-            'realism painting', 'naturalism painting', 'symbolism painting',
+            # Landscape-focused art movements
+            'landscape impressionism', 'landscape post-impressionism', 'landscape romanticism',
+            'landscape realism', 'landscape naturalism', 'landscape baroque',
             
-            # Classical subjects - landscape focus
+            # Specific landscape subjects - high priority
             'landscape oil painting', 'seascape painting', 'pastoral landscape', 
             'mountain landscape painting', 'river landscape painting', 'forest painting',
             'countryside painting', 'garden painting', 'coastal landscape',
+            'valley landscape', 'meadow painting', 'field painting',
+            'harbor scene', 'lake landscape', 'woodland scene',
             
-            # Classical portrait and figure painting
-            'portrait oil painting', 'figure painting', 'classical portrait',
-            'historical painting', 'mythological painting', 
+            # Classical landscape schools and styles
+            'hudson river school', 'barbizon school painting', 'classical landscape',
+            'plein air landscape', 'romantic landscape', 'pastoral scene',
+            'english landscape', 'dutch landscape', 'italian landscape',
             
-            # Still life paintings
-            'still life oil painting', 'floral painting', 'botanical painting',
+            # Still life and botanical (usually horizontal)
+            'still life oil painting', 'floral arrangement painting', 'botanical painting',
+            'fruit still life', 'flower painting horizontal',
             
-            # Specific classical artists/styles
-            'hudson river school', 'barbizon school', 'classical landscape',
-            'academic painting', 'salon painting', 'plein air painting'
+            # Architectural and city views (often landscape format)
+            'architectural painting', 'city view painting', 'town square painting',
+            'bridge painting', 'castle landscape', 'villa landscape',
+            
+            # Marine and coastal themes
+            'marine painting', 'ship painting landscape', 'coastal scene',
+            'harbor painting', 'beach scene painting', 'ocean view'
         ]
         
         # Quote sources for overlay
@@ -123,10 +130,12 @@ class ArtworkScreen(BaseScreen):
                 object_ids = data.get('objectIDs', [])
                 
                 if object_ids:
-                    # Try up to 10 random objects to find a landscape painting
-                    attempts = min(10, len(object_ids))
-                    for _ in range(attempts):
+                    # Try up to 15 random objects to find a landscape painting
+                    attempts = min(15, len(object_ids))
+                    for attempt in range(attempts):
                         object_id = random.choice(object_ids)
+                        
+                        print(f"  Checking Met object {attempt + 1}/{attempts}: {object_id}")
                         
                         # Get artwork details
                         object_response = requests.get(f"{self.art_apis[0]['object_url']}{object_id}", timeout=10)
@@ -137,27 +146,55 @@ class ArtworkScreen(BaseScreen):
                             object_name = artwork_data.get('objectName', '').lower()
                             classification = artwork_data.get('classification', '').lower()
                             medium = artwork_data.get('medium', '').lower()
+                            title = artwork_data.get('title', '').lower()
                             
                             # Check if it's a painting (not sculpture, decorative arts, etc.)
                             is_painting = any(word in object_name or word in classification or word in medium 
                                             for word in ['painting', 'canvas', 'oil', 'tempera', 'fresco', 'watercolor'])
                             
                             # Avoid decorative objects, sculptures, photographs
-                            is_object = any(word in object_name or word in classification 
+                            is_object = any(word in object_name or word in classification or word in title
                                           for word in ['vase', 'bowl', 'cup', 'jar', 'sculpture', 'statue', 
                                                      'photograph', 'print', 'textile', 'furniture', 'jewelry',
-                                                     'armor', 'weapon', 'coin', 'medal'])
+                                                     'armor', 'weapon', 'coin', 'medal', 'fragment', 'bust',
+                                                     'relief', 'plaque', 'vessel', 'ewer', 'dish'])
+                            
+                            # Prefer landscape subjects
+                            has_landscape_terms = any(word in title 
+                                                    for word in ['landscape', 'view', 'countryside', 'valley', 
+                                                               'river', 'mountain', 'field', 'meadow', 'coast',
+                                                               'seascape', 'harbor', 'garden', 'park'])
+                            
+                            # Avoid likely portrait subjects
+                            has_portrait_terms = any(word in title
+                                                   for word in ['portrait', 'lady', 'gentleman', 'woman', 'man',
+                                                              'child', 'boy', 'girl', 'duke', 'duchess', 'saint',
+                                                              'madonna', 'virgin', 'christ', 'head of'])
                             
                             if is_painting and not is_object:
                                 primary_image = artwork_data.get('primaryImage', '')
                                 if primary_image and self.validate_image_url(primary_image):
                                     # Check if image is landscape orientation
-                                    if self.is_landscape_image(primary_image):
+                                    is_landscape = self.is_landscape_image(primary_image)
+                                    
+                                    # Preference scoring
+                                    score = 0
+                                    if is_landscape:
+                                        score += 10
+                                    if has_landscape_terms:
+                                        score += 5
+                                    if has_portrait_terms:
+                                        score -= 8
+                                    
+                                    print(f"    Artwork score: {score} ({'landscape' if is_landscape else 'portrait'}) - {artwork_data.get('title', 'Untitled')}")
+                                    
+                                    # Accept if landscape or if we've tried many attempts
+                                    if is_landscape or (attempt > 10 and score >= 0):
                                         title = artwork_data.get('title', 'Untitled')
                                         artist = artwork_data.get('artistDisplayName', 'Unknown Artist')
                                         date = artwork_data.get('objectDate', '')
                                         
-                                        print(f"Found Met painting: {title} by {artist}")
+                                        print(f"✓ Selected Met painting: {title} by {artist}")
                                         return {
                                             'title': title,
                                             'artist': artist,
@@ -193,15 +230,23 @@ class ArtworkScreen(BaseScreen):
                 
                 if artworks:
                     # Filter for paintings and try to find landscape oriented ones
+                    checked_count = 0
                     for artwork in artworks:
+                        if checked_count >= 15:  # Limit checks for performance
+                            break
+                            
                         image_id = artwork.get('image_id')
                         if image_id and artwork.get('is_public_domain'):
+                            checked_count += 1
+                            
+                            print(f"  Checking AIC artwork {checked_count}: {artwork.get('title', 'Untitled')}")
                             
                             # Check if it's a painting
                             artwork_type = artwork.get('artwork_type_title', '').lower()
                             medium = artwork.get('medium_display', '').lower()
                             classifications = artwork.get('classification_titles', [])
                             classification_text = ' '.join(classifications).lower() if classifications else ''
+                            title = artwork.get('title', '').lower()
                             
                             # Must be a painting
                             is_painting = any(word in artwork_type or word in medium or word in classification_text
@@ -212,24 +257,50 @@ class ArtworkScreen(BaseScreen):
                                           for word in ['sculpture', 'textile', 'photograph', 'print', 'drawing',
                                                      'vessel', 'furniture', 'jewelry', 'armor', 'coin'])
                             
+                            # Prefer landscape subjects
+                            has_landscape_terms = any(word in title 
+                                                    for word in ['landscape', 'view', 'countryside', 'valley', 
+                                                               'river', 'mountain', 'field', 'meadow', 'coast',
+                                                               'seascape', 'harbor', 'garden', 'park'])
+                            
+                            # Avoid likely portrait subjects
+                            has_portrait_terms = any(word in title
+                                                   for word in ['portrait', 'lady', 'gentleman', 'woman', 'man',
+                                                              'child', 'boy', 'girl', 'self-portrait', 'head'])
+                            
                             if is_painting and not is_object:
                                 # Construct image URL
                                 image_url = f"https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg"
                                 
-                                if self.validate_image_url(image_url) and self.is_landscape_image(image_url):
-                                    title = artwork.get('title', 'Untitled')
-                                    artist = artwork.get('artist_display', 'Unknown Artist')
-                                    date = artwork.get('date_display', '')
+                                if self.validate_image_url(image_url):
+                                    is_landscape = self.is_landscape_image(image_url)
                                     
-                                    print(f"Found AIC painting: {title}")
-                                    return {
-                                        'title': title,
-                                        'artist': artist,
-                                        'date': date,
-                                        'source': 'Art Institute of Chicago',
-                                        'image_url': image_url,
-                                        'color': '#B8860B'
-                                    }
+                                    # Preference scoring
+                                    score = 0
+                                    if is_landscape:
+                                        score += 10
+                                    if has_landscape_terms:
+                                        score += 5
+                                    if has_portrait_terms:
+                                        score -= 8
+                                    
+                                    print(f"    Artwork score: {score} ({'landscape' if is_landscape else 'portrait'})")
+                                    
+                                    # Accept if landscape or if we've checked many
+                                    if is_landscape or (checked_count > 10 and score >= 0):
+                                        title = artwork.get('title', 'Untitled')
+                                        artist = artwork.get('artist_display', 'Unknown Artist')
+                                        date = artwork.get('date_display', '')
+                                        
+                                        print(f"✓ Selected AIC painting: {title}")
+                                        return {
+                                            'title': title,
+                                            'artist': artist,
+                                            'date': date,
+                                            'source': 'Art Institute of Chicago',
+                                            'image_url': image_url,
+                                            'color': '#B8860B'
+                                        }
             
         except Exception as e:
             print(f"Error fetching from Art Institute of Chicago: {e}")
@@ -299,41 +370,62 @@ class ArtworkScreen(BaseScreen):
     def is_landscape_image(self, url):
         """Check if an image is in landscape orientation (width > height)."""
         try:
-            # Get just enough of the image to determine dimensions
-            response = requests.get(url, headers={'Range': 'bytes=0-2048'}, timeout=5)
+            # Download first few KB to get image header with dimensions
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Range': 'bytes=0-32768'  # Get first 32KB which should contain header
+            }
+            
+            response = requests.get(url, headers=headers, timeout=10)
             if response.status_code in [200, 206]:  # 206 is partial content
-                from PIL import Image
-                from io import BytesIO
-                
-                # Try to get image dimensions from partial data
                 try:
                     image_data = BytesIO(response.content)
                     with Image.open(image_data) as img:
                         width, height = img.size
+                        print(f"Image dimensions: {width}x{height} ({'landscape' if width > height else 'portrait'})")
                         return width > height
-                except:
-                    # If partial doesn't work, try full image with size limit
-                    response = requests.get(url, timeout=10, stream=True)
-                    response.raw.decode_content = True
-                    
-                    # Read first chunk to get dimensions
-                    chunk = response.raw.read(8192)
-                    if chunk:
-                        image_data = BytesIO(chunk)
-                        try:
-                            with Image.open(image_data) as img:
-                                width, height = img.size
-                                return width > height
-                        except:
-                            pass
-        except:
-            pass
+                except Exception as e:
+                    print(f"Could not parse image dimensions from partial data: {e}")
+                    # If partial fails, try a small full download
+                    try:
+                        full_response = requests.get(url, timeout=15, stream=True)
+                        full_response.raw.decode_content = True
+                        
+                        # Read in chunks until we can get dimensions or hit limit
+                        chunk_data = BytesIO()
+                        max_size = 100 * 1024  # 100KB limit for dimension check
+                        current_size = 0
+                        
+                        for chunk in full_response.iter_content(chunk_size=8192):
+                            if chunk:
+                                chunk_data.write(chunk)
+                                current_size += len(chunk)
+                                
+                                # Try to open image after each chunk
+                                try:
+                                    chunk_data.seek(0)
+                                    with Image.open(chunk_data) as img:
+                                        width, height = img.size
+                                        print(f"Image dimensions: {width}x{height} ({'landscape' if width > height else 'portrait'})")
+                                        return width > height
+                                except:
+                                    chunk_data.seek(0, 2)  # Seek to end for next write
+                                    
+                                # Stop if we've read enough
+                                if current_size > max_size:
+                                    break
+                    except Exception as e2:
+                        print(f"Could not determine image orientation: {e2}")
+        except Exception as e:
+            print(f"Error checking image orientation: {e}")
         
-        # Default to True if we can't determine (assume landscape)
-        return True
+        # Default to False (reject) if we can't determine orientation
+        # This is more conservative - we'd rather skip an image than show a portrait one
+        print("Could not determine image orientation - assuming portrait (rejecting)")
+        return False
     
     def download_and_resize_artwork(self, image_url):
-        """Download and resize artwork to fill the entire 640x400 screen with proper fit."""
+        """Download and resize artwork to fit the 640x400 landscape screen optimally."""
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -352,25 +444,59 @@ class ArtworkScreen(BaseScreen):
                 orig_width, orig_height = image.size
                 target_width, target_height = 640, 400
                 
-                # Calculate scaling to fill the screen while maintaining aspect ratio
-                scale_x = target_width / orig_width
-                scale_y = target_height / orig_height
-                scale = max(scale_x, scale_y)  # Use max to fill the screen
+                print(f"Original image: {orig_width}x{orig_height}")
                 
-                # Calculate new dimensions
-                new_width = int(orig_width * scale)
-                new_height = int(orig_height * scale)
+                # Check if image is portrait oriented
+                is_portrait = orig_height > orig_width
                 
-                # Resize the image
-                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                if is_portrait:
+                    print("⚠️  Portrait image detected - applying special handling")
+                    
+                    # For portrait images, we have a few options:
+                    # 1. Scale to fit width and center vertically (may show black bars)
+                    # 2. Scale to fit height and crop sides (may lose content)
+                    # 3. Try to find the best crop area
+                    
+                    # Option 1: Scale to fit width (preserve full width, center vertically)
+                    scale = target_width / orig_width
+                    new_width = target_width
+                    new_height = int(orig_height * scale)
+                    
+                    # Resize image
+                    image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    # Create final canvas and center the image
+                    final_image = Image.new('RGB', (target_width, target_height), (20, 20, 20))  # Dark background
+                    
+                    # Center the image vertically
+                    y_offset = (target_height - new_height) // 2
+                    final_image.paste(image, (0, y_offset))
+                    
+                    image = final_image
+                    print(f"Portrait image fitted: {target_width}x{target_height} with vertical centering")
                 
-                # Center crop to exact screen size
-                left = (new_width - target_width) // 2
-                top = (new_height - target_height) // 2
-                right = left + target_width
-                bottom = top + target_height
-                
-                image = image.crop((left, top, right, bottom))
+                else:
+                    # Standard landscape processing
+                    # Calculate scaling to fill the screen while maintaining aspect ratio
+                    scale_x = target_width / orig_width
+                    scale_y = target_height / orig_height
+                    scale = max(scale_x, scale_y)  # Use max to fill the screen
+                    
+                    # Calculate new dimensions
+                    new_width = int(orig_width * scale)
+                    new_height = int(orig_height * scale)
+                    
+                    # Resize the image
+                    image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                    
+                    # Center crop to exact screen size
+                    left = (new_width - target_width) // 2
+                    top = (new_height - target_height) // 2
+                    right = left + target_width
+                    bottom = top + target_height
+                    
+                    image = image.crop((left, top, right, bottom))
+                    print(f"Landscape image cropped: {target_width}x{target_height}")
                 
                 # Enhance the image for better e-ink display
                 enhancer = ImageEnhance.Contrast(image)
@@ -379,11 +505,11 @@ class ArtworkScreen(BaseScreen):
                 enhancer = ImageEnhance.Sharpness(image)
                 image = enhancer.enhance(1.05)  # Very slight sharpening
                 
-                print(f"Successfully processed image: {target_width}x{target_height}")
+                print(f"✓ Successfully processed image: {target_width}x{target_height}")
                 return image
                 
         except Exception as e:
-            print(f"Error downloading/resizing artwork: {e}")
+            print(f"❌ Error downloading/resizing artwork: {e}")
             
         return None
     
@@ -522,12 +648,13 @@ class ArtworkScreen(BaseScreen):
         
         # Font sizes - adjusted for corner placement
         try:
-            font_quote = font_manager.get_font('quote', 14)
-            font_author = font_manager.get_font('italic', 12)
+            fonts = get_artwork_fonts()
+            font_quote = fonts['quote']     # 14pt quote font
+            font_author = fonts['author']   # 12pt italic font
         except:
-            # Fallback to default fonts if font_manager fails
-            font_quote = ImageFont.load_default()
-            font_author = ImageFont.load_default()
+            # Fallback to default fonts if font utilities fail
+            font_quote = get_font('quote', 14)
+            font_author = get_font('italic', 12)
         
         # Wrap quote text properly for smaller area
         quote_text = quote_data['text']
@@ -627,11 +754,12 @@ class ArtworkScreen(BaseScreen):
         draw = ImageDraw.Draw(image)
         
         try:
-            font_title = font_manager.get_font('title', 24)
-            font_message = font_manager.get_font('regular', 16)
+            fonts = get_artwork_fonts()
+            font_title = fonts['title']     # 24pt title font
+            font_message = fonts['message'] # 16pt regular font
         except:
-            font_title = ImageFont.load_default()
-            font_message = ImageFont.load_default()
+            font_title = get_font('title', 24)
+            font_message = get_font('regular', 16)
         
         # Draw error title
         title_bbox = draw.textbbox((0, 0), title, font=font_title)
