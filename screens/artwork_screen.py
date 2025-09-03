@@ -53,19 +53,28 @@ class ArtworkScreen(BaseScreen):
             }
         ]
         
-        # Refined search terms for high-quality artwork
+        # Refined search terms specifically for classical artwork and paintings
         self.artwork_keywords = [
-            # Art movements and styles
-            'impressionism', 'post-impressionism', 'renaissance', 'baroque', 'romanticism',
-            'abstract expressionism', 'cubism', 'surrealism', 'art nouveau', 'modernism',
+            # Classical art movements - paintings only
+            'oil painting impressionism', 'oil painting post-impressionism', 'renaissance painting', 
+            'baroque painting', 'romanticism painting', 'neoclassical painting',
+            'realism painting', 'naturalism painting', 'symbolism painting',
             
-            # Subject matter
-            'landscape', 'portrait', 'still life', 'nature', 'cityscape', 'seascape',
-            'floral', 'architectural', 'botanical', 'geometric', 'minimalist',
+            # Classical subjects - landscape focus
+            'landscape oil painting', 'seascape painting', 'pastoral landscape', 
+            'mountain landscape painting', 'river landscape painting', 'forest painting',
+            'countryside painting', 'garden painting', 'coastal landscape',
             
-            # Mediums and techniques
-            'oil painting', 'watercolor', 'photography', 'sculpture', 'drawing',
-            'printmaking', 'contemporary art', 'fine art', 'classical art'
+            # Classical portrait and figure painting
+            'portrait oil painting', 'figure painting', 'classical portrait',
+            'historical painting', 'mythological painting', 
+            
+            # Still life paintings
+            'still life oil painting', 'floral painting', 'botanical painting',
+            
+            # Specific classical artists/styles
+            'hudson river school', 'barbizon school', 'classical landscape',
+            'academic painting', 'salon painting', 'plein air painting'
         ]
         
         # Quote sources for overlay
@@ -93,18 +102,19 @@ class ArtworkScreen(BaseScreen):
         ]
     
     def get_met_museum_artwork(self, keyword=None):
-        """Get artwork from Metropolitan Museum of Art API."""
+        """Get classical paintings from Metropolitan Museum of Art API."""
         try:
             if keyword is None:
                 keyword = random.choice(self.artwork_keywords)
             
             print(f"Searching Met Museum for: {keyword}")
             
-            # Search for artwork
+            # Enhanced search for paintings only
             search_params = {
                 'hasImages': 'true',
                 'isPublicDomain': 'true',
-                'q': keyword
+                'q': f'{keyword} painting',
+                'departmentId': '11'  # European Paintings department
             }
             
             response = requests.get(self.art_apis[0]['search_url'], params=search_params, timeout=15)
@@ -113,8 +123,9 @@ class ArtworkScreen(BaseScreen):
                 object_ids = data.get('objectIDs', [])
                 
                 if object_ids:
-                    # Try up to 5 random objects to find one with a good image
-                    for _ in range(min(5, len(object_ids))):
+                    # Try up to 10 random objects to find a landscape painting
+                    attempts = min(10, len(object_ids))
+                    for _ in range(attempts):
                         object_id = random.choice(object_ids)
                         
                         # Get artwork details
@@ -122,40 +133,57 @@ class ArtworkScreen(BaseScreen):
                         if object_response.status_code == 200:
                             artwork_data = object_response.json()
                             
-                            # Check if artwork has a primary image
-                            primary_image = artwork_data.get('primaryImage', '')
-                            if primary_image and self.validate_image_url(primary_image):
-                                title = artwork_data.get('title', 'Untitled')
-                                artist = artwork_data.get('artistDisplayName', 'Unknown Artist')
-                                date = artwork_data.get('objectDate', '')
-                                
-                                print(f"Found Met artwork: {title} by {artist}")
-                                return {
-                                    'title': title,
-                                    'artist': artist,
-                                    'date': date,
-                                    'source': 'Metropolitan Museum of Art',
-                                    'image_url': primary_image,
-                                    'color': '#8B4513'
-                                }
+                            # Filter for paintings only
+                            object_name = artwork_data.get('objectName', '').lower()
+                            classification = artwork_data.get('classification', '').lower()
+                            medium = artwork_data.get('medium', '').lower()
+                            
+                            # Check if it's a painting (not sculpture, decorative arts, etc.)
+                            is_painting = any(word in object_name or word in classification or word in medium 
+                                            for word in ['painting', 'canvas', 'oil', 'tempera', 'fresco', 'watercolor'])
+                            
+                            # Avoid decorative objects, sculptures, photographs
+                            is_object = any(word in object_name or word in classification 
+                                          for word in ['vase', 'bowl', 'cup', 'jar', 'sculpture', 'statue', 
+                                                     'photograph', 'print', 'textile', 'furniture', 'jewelry',
+                                                     'armor', 'weapon', 'coin', 'medal'])
+                            
+                            if is_painting and not is_object:
+                                primary_image = artwork_data.get('primaryImage', '')
+                                if primary_image and self.validate_image_url(primary_image):
+                                    # Check if image is landscape orientation
+                                    if self.is_landscape_image(primary_image):
+                                        title = artwork_data.get('title', 'Untitled')
+                                        artist = artwork_data.get('artistDisplayName', 'Unknown Artist')
+                                        date = artwork_data.get('objectDate', '')
+                                        
+                                        print(f"Found Met painting: {title} by {artist}")
+                                        return {
+                                            'title': title,
+                                            'artist': artist,
+                                            'date': date,
+                                            'source': 'Metropolitan Museum of Art',
+                                            'image_url': primary_image,
+                                            'color': '#8B4513'
+                                        }
             
         except Exception as e:
             print(f"Error fetching from Met Museum: {e}")
         return None
     
     def get_art_institute_artwork(self, keyword=None):
-        """Get artwork from Art Institute of Chicago API."""
+        """Get paintings from Art Institute of Chicago API."""
         try:
             if keyword is None:
                 keyword = random.choice(self.artwork_keywords)
             
             print(f"Searching Art Institute Chicago for: {keyword}")
             
-            # Use the simpler GET endpoint with query parameters
+            # Focus on paintings department with enhanced search
             search_params = {
-                'q': keyword,
-                'limit': 20,
-                'fields': 'id,title,artist_display,image_id,is_public_domain,date_display'
+                'q': f'{keyword} painting',
+                'limit': 30,
+                'fields': 'id,title,artist_display,image_id,is_public_domain,date_display,artwork_type_title,medium_display,classification_titles'
             }
             
             response = requests.get('https://api.artic.edu/api/v1/artworks', params=search_params, timeout=15)
@@ -164,45 +192,63 @@ class ArtworkScreen(BaseScreen):
                 artworks = data.get('data', [])
                 
                 if artworks:
-                    # Try to find artworks with valid images
+                    # Filter for paintings and try to find landscape oriented ones
                     for artwork in artworks:
                         image_id = artwork.get('image_id')
                         if image_id and artwork.get('is_public_domain'):
-                            # Construct image URL
-                            image_url = f"https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg"
                             
-                            if self.validate_image_url(image_url):
-                                title = artwork.get('title', 'Untitled')
-                                artist = artwork.get('artist_display', 'Unknown Artist')
-                                date = artwork.get('date_display', '')
+                            # Check if it's a painting
+                            artwork_type = artwork.get('artwork_type_title', '').lower()
+                            medium = artwork.get('medium_display', '').lower()
+                            classifications = artwork.get('classification_titles', [])
+                            classification_text = ' '.join(classifications).lower() if classifications else ''
+                            
+                            # Must be a painting
+                            is_painting = any(word in artwork_type or word in medium or word in classification_text
+                                            for word in ['painting', 'oil', 'canvas', 'tempera', 'fresco', 'watercolor'])
+                            
+                            # Avoid non-painting objects
+                            is_object = any(word in artwork_type or word in medium or word in classification_text
+                                          for word in ['sculpture', 'textile', 'photograph', 'print', 'drawing',
+                                                     'vessel', 'furniture', 'jewelry', 'armor', 'coin'])
+                            
+                            if is_painting and not is_object:
+                                # Construct image URL
+                                image_url = f"https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg"
                                 
-                                print(f"Found AIC artwork: {title}")
-                                return {
-                                    'title': title,
-                                    'artist': artist,
-                                    'date': date,
-                                    'source': 'Art Institute of Chicago',
-                                    'image_url': image_url,
-                                    'color': '#B8860B'
-                                }
+                                if self.validate_image_url(image_url) and self.is_landscape_image(image_url):
+                                    title = artwork.get('title', 'Untitled')
+                                    artist = artwork.get('artist_display', 'Unknown Artist')
+                                    date = artwork.get('date_display', '')
+                                    
+                                    print(f"Found AIC painting: {title}")
+                                    return {
+                                        'title': title,
+                                        'artist': artist,
+                                        'date': date,
+                                        'source': 'Art Institute of Chicago',
+                                        'image_url': image_url,
+                                        'color': '#B8860B'
+                                    }
             
         except Exception as e:
             print(f"Error fetching from Art Institute of Chicago: {e}")
         return None
     
     def get_unsplash_artwork(self, keyword=None):
-        """Get curated artwork from Unsplash (requires API key)."""
+        """Get curated classical artwork from Unsplash (requires API key)."""
         try:
             if keyword is None:
                 keyword = random.choice(self.artwork_keywords)
             
             print(f"Searching Unsplash for: {keyword} (may require API key)")
             
-            # Try without API key first (limited access)
+            # Focus on classical paintings and artwork
             params = {
-                'query': f"{keyword} art museum gallery",
-                'orientation': 'landscape',
-                'content_filter': 'high'
+                'query': f"{keyword} classical painting museum fine art",
+                'orientation': 'landscape',  # Force landscape orientation
+                'content_filter': 'high',
+                'order_by': 'relevant'
             }
             
             headers = {
@@ -215,10 +261,11 @@ class ArtworkScreen(BaseScreen):
                 
                 image_url = data.get('urls', {}).get('regular', '')
                 if image_url and self.validate_image_url(image_url):
-                    description = data.get('description', '') or data.get('alt_description', 'Contemporary Art')
+                    description = data.get('description', '') or data.get('alt_description', 'Classical Art')
                     artist = data.get('user', {}).get('name', 'Contemporary Artist')
                     color = data.get('color', '#FFFFFF')
                     
+                    # Clean up description to focus on artwork
                     title = description[:50] + '...' if len(description) > 50 else description
                     
                     print(f"Found Unsplash artwork: {title}")
@@ -248,6 +295,42 @@ class ArtworkScreen(BaseScreen):
         except:
             pass
         return False
+    
+    def is_landscape_image(self, url):
+        """Check if an image is in landscape orientation (width > height)."""
+        try:
+            # Get just enough of the image to determine dimensions
+            response = requests.get(url, headers={'Range': 'bytes=0-2048'}, timeout=5)
+            if response.status_code in [200, 206]:  # 206 is partial content
+                from PIL import Image
+                from io import BytesIO
+                
+                # Try to get image dimensions from partial data
+                try:
+                    image_data = BytesIO(response.content)
+                    with Image.open(image_data) as img:
+                        width, height = img.size
+                        return width > height
+                except:
+                    # If partial doesn't work, try full image with size limit
+                    response = requests.get(url, timeout=10, stream=True)
+                    response.raw.decode_content = True
+                    
+                    # Read first chunk to get dimensions
+                    chunk = response.raw.read(8192)
+                    if chunk:
+                        image_data = BytesIO(chunk)
+                        try:
+                            with Image.open(image_data) as img:
+                                width, height = img.size
+                                return width > height
+                        except:
+                            pass
+        except:
+            pass
+        
+        # Default to True if we can't determine (assume landscape)
+        return True
     
     def download_and_resize_artwork(self, image_url):
         """Download and resize artwork to fill the entire 640x400 screen with proper fit."""
@@ -303,46 +386,6 @@ class ArtworkScreen(BaseScreen):
             print(f"Error downloading/resizing artwork: {e}")
             
         return None
-    
-    def create_gradient_overlay(self, width, height, color):
-        """Create a subtle gradient overlay for text readability."""
-        overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-        
-        # Create a gradient from transparent to semi-transparent
-        for y in range(height):
-            alpha = int(120 * (y / height))  # Gradient from 0 to 120 alpha
-            for x in range(width):
-                overlay.putpixel((x, y), (0, 0, 0, alpha))
-        
-        return overlay
-    
-    def get_artwork_from_fallback(self):
-        """Get artwork from fallback URLs with proper variety tracking."""
-        try:
-            # Use rotation index to ensure variety in fallback images too
-            index = self.artwork_rotation_index % len(self.fallback_images)
-            url = self.fallback_images[index]
-            artwork_info = self.fallback_artwork_info[index]
-            
-            print(f"Using fallback artwork: {artwork_info['title']} by {artwork_info['artist']}")
-            
-            return {
-                'title': artwork_info['title'],
-                'artist': artwork_info['artist'],
-                'source': 'Classic Collection',
-                'image_url': url,
-                'color': artwork_info['color']
-            }
-        except Exception as e:
-            print(f"Error getting fallback artwork: {e}")
-            # Ultimate fallback with generated artwork
-            return {
-                'title': 'Generated Artwork',
-                'artist': 'AI Assistant',
-                'source': 'Generated',
-                'image_url': None,  # Will trigger generated artwork
-                'color': '#6A5ACD'
-            }
     
     def fetch_quote(self):
         """Fetch an inspiring quote from multiple sources with SSL error handling."""
@@ -448,27 +491,27 @@ class ArtworkScreen(BaseScreen):
             self.display_error_message("Display Error", str(e))
     
     def add_quote_overlay(self, artwork_image, quote_data, artwork_data):
-        """Add an elegant quote overlay that doesn't obscure the artwork."""
+        """Add an elegant quote overlay in the bottom left corner."""
         # Create overlay
         overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
         overlay_draw = ImageDraw.Draw(overlay)
         
-        # Calculate quote area dimensions - bottom portion of screen
-        quote_width = 500  # 78% of screen width for better readability
-        quote_height = 120  # Increased height for longer quotes
-        quote_x = (640 - quote_width) // 2  # Center horizontally
-        quote_y = 280  # Start lower on screen
+        # Calculate quote area dimensions - bottom left corner
+        quote_width = 300  # Smaller width for corner placement
+        quote_height = 110  # Height for quote area
+        quote_x = 20  # 20px from left edge
+        quote_y = 270  # Start lower on screen (bottom area)
         
         # Create subtle background with gradient
         for y in range(quote_y, min(quote_y + quote_height, 400)):
             progress = (y - quote_y) / quote_height
-            alpha = int(100 + (progress * 50))  # Gradient from 100 to 150 alpha
-            overlay_draw.rectangle([(quote_x - 10, y), (quote_x + quote_width + 10, y+1)], 
+            alpha = int(110 + (progress * 40))  # Gradient from 110 to 150 alpha
+            overlay_draw.rectangle([(quote_x - 5, y), (quote_x + quote_width + 5, y+1)], 
                                  fill=(0, 0, 0, alpha))
         
         # Add border for definition
-        overlay_draw.rectangle([quote_x - 10, quote_y, quote_x + quote_width + 10, quote_y + quote_height], 
-                             outline=(255, 255, 255, 120), width=1)
+        overlay_draw.rectangle([quote_x - 5, quote_y, quote_x + quote_width + 5, quote_y + quote_height], 
+                             outline=(255, 255, 255, 100), width=1)
         
         # Composite overlay onto artwork
         display_image = Image.alpha_composite(artwork_image.convert('RGBA'), overlay)
@@ -477,25 +520,23 @@ class ArtworkScreen(BaseScreen):
         # Add text
         draw = ImageDraw.Draw(display_image)
         
-        # Font sizes - adjusted for better readability
+        # Font sizes - adjusted for corner placement
         try:
-            font_quote = font_manager.get_font('quote', 15)
-            font_author = font_manager.get_font('italic', 13)
-            font_artwork = font_manager.get_font('regular', 11)
+            font_quote = font_manager.get_font('quote', 14)
+            font_author = font_manager.get_font('italic', 12)
         except:
             # Fallback to default fonts if font_manager fails
             font_quote = ImageFont.load_default()
             font_author = ImageFont.load_default()
-            font_artwork = ImageFont.load_default()
         
-        # Wrap quote text properly
+        # Wrap quote text properly for smaller area
         quote_text = quote_data['text']
         max_text_width = quote_width - 20  # Padding
         quote_lines = self.wrap_text_smart(quote_text, font_quote, max_text_width, max_lines=4)
         
         # Position and draw quote text
-        line_height = 18
-        text_start_y = quote_y + 15
+        line_height = 16
+        text_start_y = quote_y + 10
         
         for i, line in enumerate(quote_lines):
             y = text_start_y + (i * line_height)
@@ -512,7 +553,7 @@ class ArtworkScreen(BaseScreen):
         
         # Draw author
         author_text = f"— {quote_data['author']}"
-        author_y = text_start_y + len(quote_lines) * line_height + 8
+        author_y = text_start_y + len(quote_lines) * line_height + 6
         
         # Ensure author fits on screen
         if author_y + 15 <= 400:  # Check if author text fits
@@ -520,42 +561,13 @@ class ArtworkScreen(BaseScreen):
             max_author_width = max_text_width - 20
             if self.get_text_width(author_text, font_author) > max_author_width:
                 author_name = quote_data['author']
-                if len(author_name) > 25:
-                    author_name = author_name[:22] + "..."
+                if len(author_name) > 20:
+                    author_name = author_name[:17] + "..."
                 author_text = f"— {author_name}"
             
             author_x = quote_x + 10
             draw.text((author_x + 1, author_y + 1), author_text, fill=(0, 0, 0), font=font_author)
-            draw.text((author_x, author_y), author_text, fill=(220, 220, 220), font=font_author)
-        
-        # Add artwork attribution in top-right corner
-        attribution = f"{artwork_data.get('title', 'Untitled')}"
-        artist = artwork_data.get('artist', 'Unknown Artist')
-        if len(attribution) > 30:
-            attribution = attribution[:27] + "..."
-        if len(artist) > 25:
-            artist = artist[:22] + "..."
-            
-        # Small attribution area in top-right
-        attr_bg_width = 200
-        attr_bg_height = 45
-        attr_x = 640 - attr_bg_width - 10
-        attr_y = 10
-        
-        # Subtle background for attribution
-        attr_overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
-        attr_draw = ImageDraw.Draw(attr_overlay)
-        attr_draw.rectangle([attr_x, attr_y, attr_x + attr_bg_width, attr_y + attr_bg_height], 
-                           fill=(0, 0, 0, 120))
-        
-        display_image = Image.alpha_composite(display_image.convert('RGBA'), attr_overlay)
-        display_image = display_image.convert('RGB')
-        
-        # Draw attribution text
-        draw = ImageDraw.Draw(display_image)
-        draw.text((attr_x + 6, attr_y + 5), attribution, fill=(255, 255, 255), font=font_artwork)
-        draw.text((attr_x + 6, attr_y + 20), artist, fill=(200, 200, 200), font=font_artwork)
-        draw.text((attr_x + 6, attr_y + 32), artwork_data.get('source', ''), fill=(160, 160, 160), font=font_artwork)
+            draw.text((author_x, author_y), author_text, fill=(200, 200, 200), font=font_author)
         
         return display_image
     
