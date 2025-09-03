@@ -77,31 +77,31 @@ class StarmapScreen(BaseScreen):
         """Get real constellation data with proper star coordinates for current location."""
         return {
             "Ursa Major": {
-                "stars": [(180, 80), (200, 85), (220, 75), (240, 80), (260, 90), (280, 95), (300, 100)],
+                "stars": [(180, 100), (200, 105), (220, 95), (240, 100), (260, 110), (280, 115), (300, 120)],
                 "main_stars": ["Dubhe", "Merak", "Phecda", "Megrez", "Alioth", "Mizar", "Alkaid"],
                 "season": "spring",
                 "magnitude": [1.8, 2.4, 2.4, 3.3, 1.8, 2.1, 1.9]
             },
             "Orion": {
-                "stars": [(400, 180), (420, 160), (440, 140), (380, 200), (460, 190), (400, 220), (440, 240)],
+                "stars": [(400, 200), (420, 180), (440, 160), (380, 220), (460, 210), (400, 240), (440, 260)],
                 "main_stars": ["Betelgeuse", "Rigel", "Bellatrix", "Mintaka", "Alnilam", "Alnitak", "Saiph"],
                 "season": "winter",
                 "magnitude": [0.5, 0.1, 1.6, 2.2, 1.7, 1.8, 2.1]
             },
             "Cassiopeia": {
-                "stars": [(150, 120), (170, 110), (190, 115), (210, 105), (230, 120)],
+                "stars": [(150, 140), (170, 130), (190, 135), (210, 125), (230, 140)],
                 "main_stars": ["Shedir", "Caph", "Gamma Cas", "Ruchbah", "Segin"],
                 "season": "autumn",
                 "magnitude": [2.2, 2.3, 2.5, 2.7, 3.4]
             },
             "Leo": {
-                "stars": [(350, 180), (370, 170), (390, 165), (410, 175), (430, 190)],
+                "stars": [(350, 200), (370, 190), (390, 185), (410, 195), (430, 210)],
                 "main_stars": ["Regulus", "Denebola", "Algieba", "Zosma", "Chertan"],
                 "season": "spring",
                 "magnitude": [1.4, 2.1, 2.6, 2.6, 3.3]
             },
             "Cygnus": {
-                "stars": [(500, 140), (520, 160), (540, 180), (480, 200), (560, 220)],
+                "stars": [(500, 160), (520, 180), (540, 200), (480, 220), (560, 240)],
                 "main_stars": ["Deneb", "Albireo", "Gamma Cyg", "Delta Cyg", "Epsilon Cyg"],
                 "season": "summer",
                 "magnitude": [1.3, 3.1, 2.2, 2.9, 2.5]
@@ -422,17 +422,17 @@ class StarmapScreen(BaseScreen):
         import random
         random.seed(42)  # Consistent pattern
         
-        # Background stars (magnitude 6+)
+        # Background stars (magnitude 6+) - adjusted to stay above info panel
         for _ in range(150):
             x = random.randint(0, 640)
-            y = random.randint(0, 300)
+            y = random.randint(60, 320)  # Adjusted range to avoid title and info panel
             brightness = random.randint(40, 80)
             draw.point((x, y), fill=(brightness, brightness, brightness))
         
-        # Medium stars (magnitude 4-6)
+        # Medium stars (magnitude 4-6) - adjusted range
         for _ in range(60):
             x = random.randint(0, 640)
-            y = random.randint(0, 280)
+            y = random.randint(70, 310)  # Adjusted range
             brightness = random.randint(100, 160)
             size = random.choice([1, 2])
             
@@ -441,10 +441,10 @@ class StarmapScreen(BaseScreen):
             else:
                 draw.ellipse([x-1, y-1, x+1, y+1], fill=(brightness, brightness, brightness))
         
-        # Bright stars (magnitude 1-3) with proper cross pattern
+        # Bright stars (magnitude 1-3) with proper cross pattern - adjusted range
         for _ in range(20):
             x = random.randint(50, 590)
-            y = random.randint(50, 250)
+            y = random.randint(80, 300)  # Adjusted range
             
             # Use white for brightest stars
             color = self.colors['white']
@@ -457,7 +457,7 @@ class StarmapScreen(BaseScreen):
             # Central star
             draw.ellipse([x-2, y-2, x+2, y+2], fill=color)
         
-        # Very bright stars (magnitude <1) - use colored stars
+        # Very bright stars (magnitude <1) - use colored stars - adjusted range
         bright_star_colors = [
             self.colors['white'],    # White giants
             self.colors['blue'],     # Blue giants  
@@ -467,7 +467,7 @@ class StarmapScreen(BaseScreen):
         
         for _ in range(8):
             x = random.randint(100, 540)
-            y = random.randint(80, 220)
+            y = random.randint(100, 280)  # Adjusted range
             color = random.choice(bright_star_colors)
             
             # Large diffraction spikes
@@ -485,8 +485,8 @@ class StarmapScreen(BaseScreen):
         import random
         random.seed(24)
         
-        # Create curved band across sky
-        center_y = 180
+        # Create curved band across sky - adjusted to be more centered
+        center_y = 200  # Moved down from 180 to 200
         band_width = 100
         
         for x in range(0, 640, 2):
@@ -494,8 +494,8 @@ class StarmapScreen(BaseScreen):
             y_offset = int(30 * math.sin(x / 120))
             band_center = center_y + y_offset
             
-            for y in range(max(50, band_center - band_width//2), 
-                          min(300, band_center + band_width//2), 3):
+            for y in range(max(70, band_center - band_width//2), 
+                          min(320, band_center + band_width//2), 3):  # Adjusted bounds
                 distance_from_center = abs(y - band_center)
                 opacity = max(0, 1 - (distance_from_center / (band_width//2)))
                 
@@ -773,9 +773,9 @@ class StarmapScreen(BaseScreen):
             for constellation_name, constellation_data in star_data["constellations"].items():
                 self.draw_enhanced_constellation(draw, constellation_name, constellation_data, font_small)
             
-            # Draw realistic planets
+            # Draw realistic planets - adjusted positions to be more centered
             planet_positions = [
-                (100, 120), (180, 180), (520, 140), (580, 200), (300, 110)
+                (100, 140), (180, 200), (520, 160), (580, 220), (300, 130)
             ]
             
             visible_planets = star_data.get("visible_planets", [])
@@ -784,8 +784,8 @@ class StarmapScreen(BaseScreen):
                     x, y = planet_positions[i]
                     self.draw_realistic_planet(draw, planet, x, y, font_small)
             
-            # Draw accurate moon phase
-            moon_x, moon_y = 550, 320
+            # Draw accurate moon phase - moved up to avoid info bar overlap
+            moon_x, moon_y = 550, 280  # Moved up from 320 to 280
             moon_phase = star_data.get("moon_phase", "Unknown")
             moon_illumination = star_data.get("moon_illumination", 50)
             self.draw_accurate_moon_phase(draw, moon_phase, moon_illumination, moon_x, moon_y, 30)
@@ -833,9 +833,6 @@ class StarmapScreen(BaseScreen):
                     planets_x = 640 - text_width - 10
                     draw.text((planets_x+1, info_y_base+1), planets_text, fill=self.colors['black'], font=font_small)
                     draw.text((planets_x, info_y_base), planets_text, fill=self.colors['white'], font=font_small)
-            
-            # Add compass rose in corner
-            self.draw_compass_rose(draw, 50, 350, 25)
             
             # Ensure proper format for e-ink display
             if display_image.mode != 'RGB':
