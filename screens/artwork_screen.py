@@ -1,7 +1,7 @@
 """
 Artwork with Quotes Screen
 Displays full-screen high-quality artwork with inspiring quotes overlay
-Updates every 5 minutes with new artwork and quotes
+Updates every 5 minutes with new artwork and quotes from reliable art APIs
 """
 
 import requests
@@ -25,33 +25,47 @@ class ArtworkScreen(BaseScreen):
         self.update_interval = config.ARTWORK_UPDATE_INTERVAL
         self.current_artwork = None
         self.current_quote = None
-        self.artwork_rotation_index = 0  # Track artwork rotation
         
-        # Multiple art sources for better variety
-        self.art_sources = [
+        # Art APIs that provide reliable, high-quality artwork
+        self.art_apis = [
             {
-                'name': 'Direct Images',
-                'type': 'direct',
-                'search_url': None
+                'name': 'Met Museum',
+                'type': 'met',
+                'search_url': 'https://collectionapi.metmuseum.org/public/collection/v1/search',
+                'object_url': 'https://collectionapi.metmuseum.org/public/collection/v1/objects/'
             },
             {
-                'name': 'Wikimedia Commons',
-                'type': 'wikimedia',
-                'search_url': 'https://commons.wikimedia.org/w/api.php'
+                'name': 'Art Institute Chicago',
+                'type': 'aic',
+                'search_url': 'https://api.artic.edu/api/v1/artworks/search',
+                'detail_url': 'https://api.artic.edu/api/v1/artworks/'
+            },
+            {
+                'name': 'Harvard Art Museums',
+                'type': 'harvard',
+                'search_url': 'https://api.harvardartmuseums.org/object',
+                'api_key': None  # Free tier available
             },
             {
                 'name': 'Unsplash',
-                'type': 'unsplash', 
+                'type': 'unsplash',
                 'search_url': 'https://api.unsplash.com/photos/random'
             }
         ]
         
-        # High-quality search terms for artwork
+        # Refined search terms for high-quality artwork
         self.artwork_keywords = [
-            'classical painting', 'renaissance art', 'baroque painting', 'impressionist painting',
-            'landscape painting', 'portrait painting', 'still life painting', 'abstract art',
-            'modern art', 'contemporary art', 'sculpture', 'fine art photography',
-            'architectural photography', 'nature photography', 'minimalist art', 'museum artwork'
+            # Art movements and styles
+            'impressionism', 'post-impressionism', 'renaissance', 'baroque', 'romanticism',
+            'abstract expressionism', 'cubism', 'surrealism', 'art nouveau', 'modernism',
+            
+            # Subject matter
+            'landscape', 'portrait', 'still life', 'nature', 'cityscape', 'seascape',
+            'floral', 'architectural', 'botanical', 'geometric', 'minimalist',
+            
+            # Mediums and techniques
+            'oil painting', 'watercolor', 'photography', 'sculpture', 'drawing',
+            'printmaking', 'contemporary art', 'fine art', 'classical art'
         ]
         
         # Quote sources for overlay
@@ -59,201 +73,191 @@ class ArtworkScreen(BaseScreen):
             {
                 'name': 'Quotable',
                 'url': 'https://api.quotable.io/random',
-                'max_length': 150
+                'max_length': 140
             },
             {
                 'name': 'ZenQuotes',
                 'url': 'https://zenquotes.io/api/random',
-                'max_length': 150
+                'max_length': 140
             }
         ]
         
-        # Inspiring fallback quotes
+        # Curated fallback quotes for when APIs fail
         self.fallback_quotes = [
-            {
-                "text": "Art enables us to find ourselves and lose ourselves at the same time.",
-                "author": "Thomas Merton"
-            },
-            {
-                "text": "Every artist was first an amateur.",
-                "author": "Ralph Waldo Emerson"
-            },
-            {
-                "text": "Art is not what you see, but what you make others see.",
-                "author": "Edgar Degas"
-            },
-            {
-                "text": "The purpose of art is washing the dust of daily life off our souls.",
-                "author": "Pablo Picasso"
-            },
-            {
-                "text": "Art should comfort the disturbed and disturb the comfortable.",
-                "author": "Cesar A. Cruz"
-            },
-            {
-                "text": "Creativity takes courage.",
-                "author": "Henri Matisse"
-            }
-        ]
-        
-        # Fallback high-quality images - expanded collection with more variety
-        self.fallback_images = [
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg/1280px-Van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/The_Great_Wave_off_Kanagawa.jpg/1280px-The_Great_Wave_off_Kanagawa.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Edvard_Munch%2C_1893%2C_The_Scream%2C_oil%2C_tempera_and_pastel_on_cardboard%2C_91_x_73_cm%2C_National_Gallery_of_Norway.jpg/687px-Edvard_Munch%2C_1893%2C_The_Scream%2C_oil%2C_tempera_and_pastel_on_cardboard%2C_91_x_73_cm%2C_National_Gallery_of_Norway.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Leonardo_da_Vinci_-_Mona_Lisa_%28Louvre%2C_Paris%29.jpg/800px-Leonardo_da_Vinci_-_Mona_Lisa_%28Louvre%2C_Paris%29.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Johannes_Vermeer_-_Girl_with_a_Pearl_Earring_-_WGA24666.jpg/800px-Johannes_Vermeer_-_Girl_with_a_Pearl_Earring_-_WGA24666.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Monet_Water_Lilies_1919_Metropolitan_Museum.jpg/1280px-Monet_Water_Lilies_1919_Metropolitan_Museum.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Tsunami_by_hokusai_19th_century.jpg/1280px-Tsunami_by_hokusai_19th_century.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Vincent_van_Gogh_-_The_Potato_Eaters_-_Google_Art_Project_%282%29.jpg/1280px-Vincent_van_Gogh_-_The_Potato_Eaters_-_Google_Art_Project_%282%29.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Self-Portrait_with_a_Straw_Hat_%28obverse-_The_Potato_Peeler%29_%28F_61v_JH_1302%29_by_Vincent_van_Gogh.jpg/800px-Self-Portrait_with_a_Straw_Hat_%28obverse-_The_Potato_Peeler%29_%28F_61v_JH_1302%29_by_Vincent_van_Gogh.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg/1280px-A_Sunday_on_La_Grande_Jatte%2C_Georges_Seurat%2C_1884.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg/800px-Caspar_David_Friedrich_-_Wanderer_above_the_sea_of_fog.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/David_-_The_Death_of_Socrates.jpg/1280px-David_-_The_Death_of_Socrates.jpg'
-        ]
-        
-        # Matching artwork info for fallback images
-        self.fallback_artwork_info = [
-            {'title': 'The Starry Night', 'artist': 'Vincent van Gogh', 'color': '#1E3A8A'},
-            {'title': 'The Great Wave off Kanagawa', 'artist': 'Katsushika Hokusai', 'color': '#0F4C75'},
-            {'title': 'The Scream', 'artist': 'Edvard Munch', 'color': '#DC2626'},
-            {'title': 'Mona Lisa', 'artist': 'Leonardo da Vinci', 'color': '#8B5A2B'},
-            {'title': 'Girl with a Pearl Earring', 'artist': 'Johannes Vermeer', 'color': '#1F2937'},
-            {'title': 'Water Lilies', 'artist': 'Claude Monet', 'color': '#059669'},
-            {'title': 'The Great Wave (Alt)', 'artist': 'Katsushika Hokusai', 'color': '#1E40AF'},
-            {'title': 'The Potato Eaters', 'artist': 'Vincent van Gogh', 'color': '#92400E'},
-            {'title': 'Self-Portrait with Straw Hat', 'artist': 'Vincent van Gogh', 'color': '#B45309'},
-            {'title': 'A Sunday on La Grande Jatte', 'artist': 'Georges Seurat', 'color': '#047857'},
-            {'title': 'Wanderer above the Sea of Fog', 'artist': 'Caspar David Friedrich', 'color': '#374151'},
-            {'title': 'The Death of Socrates', 'artist': 'Jacques-Louis David', 'color': '#7C2D12'}
+            {"text": "Art enables us to find ourselves and lose ourselves at the same time.", "author": "Thomas Merton"},
+            {"text": "Every artist was first an amateur.", "author": "Ralph Waldo Emerson"},
+            {"text": "Art is not what you see, but what you make others see.", "author": "Edgar Degas"},
+            {"text": "The purpose of art is washing the dust of daily life off our souls.", "author": "Pablo Picasso"},
+            {"text": "Creativity takes courage.", "author": "Henri Matisse"},
+            {"text": "Art should comfort the disturbed and disturb the comfortable.", "author": "Cesar A. Cruz"}
         ]
     
-    def get_direct_artwork(self, keyword=None):
-        """Get artwork directly from our curated collection."""
-        try:
-            # Use rotation to ensure we cycle through all images
-            # Note: rotation_index is incremented in display() method
-            index = self.artwork_rotation_index % len(self.fallback_images)
-            url = self.fallback_images[index]
-            artwork_info = self.fallback_artwork_info[index]
-            
-            print(f"Using direct artwork: {artwork_info['title']} by {artwork_info['artist']}")
-            
-            return {
-                'title': artwork_info['title'],
-                'artist': artwork_info['artist'],
-                'source': 'Curated Collection',
-                'image_url': url,
-                'color': artwork_info['color']
-            }
-        except Exception as e:
-            print(f"Error getting direct artwork: {e}")
-            return None
-
-    def get_unsplash_artwork(self, keyword=None):
+    def get_met_museum_artwork(self, keyword=None):
+        """Get artwork from Metropolitan Museum of Art API."""
         try:
             if keyword is None:
                 keyword = random.choice(self.artwork_keywords)
-            url = "https://api.unsplash.com/photos/random"
+            
+            print(f"Searching Met Museum for: {keyword}")
+            
+            # Search for artwork
+            search_params = {
+                'hasImages': 'true',
+                'isPublicDomain': 'true',
+                'q': keyword
+            }
+            
+            response = requests.get(self.art_apis[0]['search_url'], params=search_params, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                object_ids = data.get('objectIDs', [])
+                
+                if object_ids:
+                    # Try up to 5 random objects to find one with a good image
+                    for _ in range(min(5, len(object_ids))):
+                        object_id = random.choice(object_ids)
+                        
+                        # Get artwork details
+                        object_response = requests.get(f"{self.art_apis[0]['object_url']}{object_id}", timeout=10)
+                        if object_response.status_code == 200:
+                            artwork_data = object_response.json()
+                            
+                            # Check if artwork has a primary image
+                            primary_image = artwork_data.get('primaryImage', '')
+                            if primary_image and self.validate_image_url(primary_image):
+                                title = artwork_data.get('title', 'Untitled')
+                                artist = artwork_data.get('artistDisplayName', 'Unknown Artist')
+                                date = artwork_data.get('objectDate', '')
+                                
+                                print(f"Found Met artwork: {title} by {artist}")
+                                return {
+                                    'title': title,
+                                    'artist': artist,
+                                    'date': date,
+                                    'source': 'Metropolitan Museum of Art',
+                                    'image_url': primary_image,
+                                    'color': '#8B4513'
+                                }
+            
+        except Exception as e:
+            print(f"Error fetching from Met Museum: {e}")
+        return None
+    
+    def get_art_institute_artwork(self, keyword=None):
+        """Get artwork from Art Institute of Chicago API."""
+        try:
+            if keyword is None:
+                keyword = random.choice(self.artwork_keywords)
+            
+            print(f"Searching Art Institute Chicago for: {keyword}")
+            
+            # Use the simpler GET endpoint with query parameters
+            search_params = {
+                'q': keyword,
+                'limit': 20,
+                'fields': 'id,title,artist_display,image_id,is_public_domain,date_display'
+            }
+            
+            response = requests.get('https://api.artic.edu/api/v1/artworks', params=search_params, timeout=15)
+            if response.status_code == 200:
+                data = response.json()
+                artworks = data.get('data', [])
+                
+                if artworks:
+                    # Try to find artworks with valid images
+                    for artwork in artworks:
+                        image_id = artwork.get('image_id')
+                        if image_id and artwork.get('is_public_domain'):
+                            # Construct image URL
+                            image_url = f"https://www.artic.edu/iiif/2/{image_id}/full/843,/0/default.jpg"
+                            
+                            if self.validate_image_url(image_url):
+                                title = artwork.get('title', 'Untitled')
+                                artist = artwork.get('artist_display', 'Unknown Artist')
+                                date = artwork.get('date_display', '')
+                                
+                                print(f"Found AIC artwork: {title}")
+                                return {
+                                    'title': title,
+                                    'artist': artist,
+                                    'date': date,
+                                    'source': 'Art Institute of Chicago',
+                                    'image_url': image_url,
+                                    'color': '#B8860B'
+                                }
+            
+        except Exception as e:
+            print(f"Error fetching from Art Institute of Chicago: {e}")
+        return None
+    
+    def get_unsplash_artwork(self, keyword=None):
+        """Get curated artwork from Unsplash (requires API key)."""
+        try:
+            if keyword is None:
+                keyword = random.choice(self.artwork_keywords)
+            
+            print(f"Searching Unsplash for: {keyword} (may require API key)")
+            
+            # Try without API key first (limited access)
             params = {
-                'query': keyword,
+                'query': f"{keyword} art museum gallery",
                 'orientation': 'landscape',
-                'content_filter': 'high',
-                'w': 640,
-                'h': 400,
-                'fit': 'crop'
+                'content_filter': 'high'
             }
             
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            # Try with SSL verification first, then without if needed
-            try:
-                response = requests.get(url, params=params, headers=headers, timeout=15, verify=True)
-            except (requests.exceptions.SSLError, ssl.SSLError):
-                print(f"SSL verification failed for Unsplash, trying without verification...")
-                response = requests.get(url, params=params, headers=headers, timeout=15, verify=False)
-            
+            response = requests.get(self.art_apis[3]['search_url'], params=params, headers=headers, timeout=15)
             if response.status_code == 200:
                 data = response.json()
-                print(f"Successfully fetched Unsplash artwork: {data.get('description', 'Untitled')}")
-                return {
-                    'title': data.get('description', 'Untitled'),
-                    'artist': data.get('user', {}).get('name', 'Unknown Artist'),
-                    'source': 'Unsplash',
-                    'image_url': data.get('urls', {}).get('regular', ''),
-                    'color': data.get('color', '#FFFFFF')
-                }
-            else:
-                print(f"Unsplash API returned status code: {response.status_code}")
+                
+                image_url = data.get('urls', {}).get('regular', '')
+                if image_url and self.validate_image_url(image_url):
+                    description = data.get('description', '') or data.get('alt_description', 'Contemporary Art')
+                    artist = data.get('user', {}).get('name', 'Contemporary Artist')
+                    color = data.get('color', '#FFFFFF')
+                    
+                    title = description[:50] + '...' if len(description) > 50 else description
+                    
+                    print(f"Found Unsplash artwork: {title}")
+                    return {
+                        'title': title,
+                        'artist': artist,
+                        'date': 'Contemporary',
+                        'source': 'Unsplash',
+                        'image_url': image_url,
+                        'color': color
+                    }
+            elif response.status_code == 401:
+                print("Unsplash requires API key - skipping")
+                    
         except Exception as e:
             print(f"Error fetching from Unsplash: {e}")
         return None
     
-    def get_wikimedia_artwork(self, keyword=None):
-        """Get artwork from Wikimedia Commons."""
+    def validate_image_url(self, url):
+        """Validate that an image URL is accessible and returns an actual image."""
         try:
-            if keyword is None:
-                keyword = random.choice(self.artwork_keywords)
-            params = {
-                'action': 'query',
-                'format': 'json',
-                'list': 'search',
-                'srsearch': f'{keyword} filetype:bitmap',
-                'srnamespace': '6',
-                'srlimit': '20'
-            }
-            
-            response = requests.get(self.art_sources[0]['search_url'], params=params, timeout=15)
+            # Quick HEAD request to check if URL is valid
+            response = requests.head(url, timeout=5)
             if response.status_code == 200:
-                data = response.json()
-                if data.get('query', {}).get('search'):
-                    # Get a random result
-                    result = random.choice(data['query']['search'])
-                    title = result.get('title', 'Untitled').replace('File:', '')
-                    
-                    # Get image info
-                    info_params = {
-                        'action': 'query',
-                        'format': 'json',
-                        'titles': result['title'],
-                        'prop': 'imageinfo',
-                        'iiprop': 'url|size'
-                    }
-                    
-                    info_response = requests.get(self.art_sources[0]['search_url'], params=info_params, timeout=10)
-                    if info_response.status_code == 200:
-                        info_data = info_response.json()
-                        pages = info_data.get('query', {}).get('pages', {})
-                        for page in pages.values():
-                            imageinfo = page.get('imageinfo', [])
-                            if imageinfo:
-                                return {
-                                    'title': title,
-                                    'artist': 'Wikimedia Commons',
-                                    'source': 'Wikimedia',
-                                    'image_url': imageinfo[0].get('url', ''),
-                                    'color': '#FFFFFF'
-                                }
-        except Exception as e:
-            print(f"Error fetching from Wikimedia: {e}")
-        return None
+                content_type = response.headers.get('content-type', '').lower()
+                return any(img_type in content_type for img_type in ['image/jpeg', 'image/jpg', 'image/png'])
+        except:
+            pass
+        return False
     
     def download_and_resize_artwork(self, image_url):
-        """Download and resize artwork to fill the entire 640x400 screen."""
+        """Download and resize artwork to fill the entire 640x400 screen with proper fit."""
         try:
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
-            # Try with SSL verification first, then without if needed
-            try:
-                response = requests.get(image_url, headers=headers, timeout=20, verify=True)
-            except (requests.exceptions.SSLError, ssl.SSLError):
-                print(f"SSL verification failed for image, trying without verification...")
-                response = requests.get(image_url, headers=headers, timeout=20, verify=False)
-            
+            # Download the image
+            response = requests.get(image_url, headers=headers, timeout=20)
             if response.status_code == 200:
                 image = Image.open(BytesIO(response.content))
                 
@@ -261,16 +265,38 @@ class ArtworkScreen(BaseScreen):
                 if image.mode != 'RGB':
                     image = image.convert('RGB')
                 
-                # Resize to fill the entire screen (640x400)
-                image = image.resize((640, 400), Image.Resampling.LANCZOS)
+                # Get original dimensions
+                orig_width, orig_height = image.size
+                target_width, target_height = 640, 400
                 
-                # Enhance the image for better display on e-ink
+                # Calculate scaling to fill the screen while maintaining aspect ratio
+                scale_x = target_width / orig_width
+                scale_y = target_height / orig_height
+                scale = max(scale_x, scale_y)  # Use max to fill the screen
+                
+                # Calculate new dimensions
+                new_width = int(orig_width * scale)
+                new_height = int(orig_height * scale)
+                
+                # Resize the image
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                
+                # Center crop to exact screen size
+                left = (new_width - target_width) // 2
+                top = (new_height - target_height) // 2
+                right = left + target_width
+                bottom = top + target_height
+                
+                image = image.crop((left, top, right, bottom))
+                
+                # Enhance the image for better e-ink display
                 enhancer = ImageEnhance.Contrast(image)
-                image = enhancer.enhance(1.2)  # Increase contrast slightly
+                image = enhancer.enhance(1.1)  # Slight contrast boost
                 
                 enhancer = ImageEnhance.Sharpness(image)
-                image = enhancer.enhance(1.1)  # Slight sharpening
+                image = enhancer.enhance(1.05)  # Very slight sharpening
                 
+                print(f"Successfully processed image: {target_width}x{target_height}")
                 return image
                 
         except Exception as e:
@@ -362,169 +388,186 @@ class ArtworkScreen(BaseScreen):
     
     def display(self):
         """Display full-screen artwork with an inspiring quote overlay."""
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Updating Artwork + Quote screen...")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Fetching new artwork...")
         
         try:
-            # Get fresh artwork (cycles through keywords for variety)
+            # Try to get artwork from our reliable art APIs
             artwork_data = None
-            sources_to_try = [
-                self.get_direct_artwork,      # Try our curated collection first
-                self.get_unsplash_artwork,
-                self.get_wikimedia_artwork,
-                self.get_artwork_from_fallback
+            keyword = random.choice(self.artwork_keywords)
+            
+            # Try art APIs in order of preference - only free APIs
+            art_sources = [
+                self.get_met_museum_artwork,
+                self.get_art_institute_artwork
             ]
             
-            # Cycle through keywords to ensure variety
-            keyword = self.artwork_keywords[self.artwork_rotation_index % len(self.artwork_keywords)]
-            self.artwork_rotation_index += 1
-            print(f"Searching for artwork with keyword: {keyword}")
+            print(f"Searching for: {keyword}")
             
-            for source_func in sources_to_try:
+            for source_func in art_sources:
                 try:
-                    if source_func.__name__ in ['get_artwork_from_fallback', 'get_direct_artwork']:
-                        artwork_data = source_func()
-                    else:
-                        artwork_data = source_func(keyword)
+                    print(f"Trying {source_func.__name__}...")
+                    artwork_data = source_func(keyword)
                     if artwork_data and artwork_data.get('image_url'):
-                        print(f"Successfully got artwork from {source_func.__name__}")
-                        break
-                    elif artwork_data and not artwork_data.get('image_url'):
-                        print(f"Got artwork metadata but no URL from {source_func.__name__}")
+                        print(f"✓ Got artwork from {source_func.__name__}")
                         break
                 except Exception as e:
-                    print(f"Error with source {source_func.__name__}: {e}")
+                    print(f"✗ Error with {source_func.__name__}: {e}")
                     continue
             
             if not artwork_data:
-                print("Using fallback artwork")
-                artwork_data = {
-                    'title': 'Classic Masterpiece',
-                    'artist': 'Master Artist', 
-                    'source': 'Classic Collection',
-                    'image_url': random.choice(self.fallback_images),
-                    'color': '#6A5ACD'
-                }
+                print("❌ Could not fetch artwork from any source")
+                self.display_error_message("No Artwork Available", "Unable to fetch artwork from any source")
+                return
             
-            # Get fresh quote
+            # Get a quote
             quote_data = self.fetch_quote()
-            self.current_quote = quote_data
             
             # Download and process the artwork
-            if artwork_data.get('image_url'):
-                print(f"Displaying artwork with quote by {quote_data['author']}")
-                artwork_image = self.download_and_resize_artwork(artwork_data['image_url'])
-            else:
-                artwork_image = None
+            print(f"Downloading image: {artwork_data['image_url']}")
+            artwork_image = self.download_and_resize_artwork(artwork_data['image_url'])
             
-            # If we couldn't get an image, create a beautiful fallback
             if not artwork_image:
-                artwork_image = self.create_fallback_artwork(artwork_data)
+                print("❌ Failed to download/process artwork image")
+                self.display_error_message("Image Error", "Could not process artwork image")
+                return
             
-            # Create elegant quote overlay
-            display_image = self.add_quote_overlay(artwork_image, quote_data)
+            # Add quote overlay
+            display_image = self.add_quote_overlay(artwork_image, quote_data, artwork_data)
             
-            # Store current artwork
+            # Store current data
             self.current_artwork = artwork_data
+            self.current_quote = quote_data
             
-            # Display the combined artwork + quote
+            # Display the final image
+            print(f"✓ Displaying: {artwork_data['title']} by {artwork_data['artist']}")
             self.inky.set_image(display_image)
             self.inky.show()
             
         except Exception as e:
-            print(f"Error displaying artwork: {e}")
-            self.display_error_message("Artwork Error", str(e))
+            print(f"❌ Error in display: {e}")
+            self.display_error_message("Display Error", str(e))
     
-    def add_quote_overlay(self, artwork_image, quote_data):
-        """Add a small, elegant quote overlay in the bottom left corner."""
-        # Create overlay for quote - much smaller area in bottom left
+    def add_quote_overlay(self, artwork_image, quote_data, artwork_data):
+        """Add an elegant quote overlay that doesn't obscure the artwork."""
+        # Create overlay
         overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
         overlay_draw = ImageDraw.Draw(overlay)
         
-        # Calculate quote box dimensions - smaller area in bottom left
-        quote_width = 280  # About 44% of screen width
-        quote_height = 100  # About 25% of screen height
-        quote_x = 20  # 20px from left edge
-        quote_y = 280  # Start at y=280 (leaves 120px at bottom)
+        # Calculate quote area dimensions - bottom portion of screen
+        quote_width = 500  # 78% of screen width for better readability
+        quote_height = 120  # Increased height for longer quotes
+        quote_x = (640 - quote_width) // 2  # Center horizontally
+        quote_y = 280  # Start lower on screen
         
-        # Create rounded rectangle background with subtle transparency
-        for y in range(quote_y, quote_y + quote_height):
+        # Create subtle background with gradient
+        for y in range(quote_y, min(quote_y + quote_height, 400)):
             progress = (y - quote_y) / quote_height
-            # Gentle gradient for readability without being too dark
-            alpha = int(120 + (progress * 40))  # Range from 120 to 160 alpha
-            overlay_draw.rectangle([(quote_x, y), (quote_x + quote_width, y+1)], 
+            alpha = int(100 + (progress * 50))  # Gradient from 100 to 150 alpha
+            overlay_draw.rectangle([(quote_x - 10, y), (quote_x + quote_width + 10, y+1)], 
                                  fill=(0, 0, 0, alpha))
         
-        # Add subtle border for definition
-        overlay_draw.rectangle([quote_x, quote_y, quote_x + quote_width, quote_y + quote_height], 
-                             outline=(255, 255, 255, 80), width=1)
+        # Add border for definition
+        overlay_draw.rectangle([quote_x - 10, quote_y, quote_x + quote_width + 10, quote_y + quote_height], 
+                             outline=(255, 255, 255, 120), width=1)
         
-        # Composite the overlay onto the artwork
+        # Composite overlay onto artwork
         display_image = Image.alpha_composite(artwork_image.convert('RGBA'), overlay)
         display_image = display_image.convert('RGB')
         
-        # Add quote text with good readability
+        # Add text
         draw = ImageDraw.Draw(display_image)
         
-        # Use readable font sizes for the smaller area
-        font_quote = font_manager.get_font('quote', 16)  # Smaller but readable
-        font_author = font_manager.get_font('italic', 14)  # Author text
+        # Font sizes - adjusted for better readability
+        try:
+            font_quote = font_manager.get_font('quote', 15)
+            font_author = font_manager.get_font('italic', 13)
+            font_artwork = font_manager.get_font('regular', 11)
+        except:
+            # Fallback to default fonts if font_manager fails
+            font_quote = ImageFont.load_default()
+            font_author = ImageFont.load_default()
+            font_artwork = ImageFont.load_default()
         
-        # Wrap and draw quote text to fit in the smaller area
+        # Wrap quote text properly
         quote_text = quote_data['text']
-        max_width = quote_width - 20  # Leave 10px padding on each side
-        quote_lines = self.wrap_text_for_quote(quote_text, font_quote, max_width, 3)  # Max 3 lines
+        max_text_width = quote_width - 20  # Padding
+        quote_lines = self.wrap_text_smart(quote_text, font_quote, max_text_width, max_lines=4)
         
-        # Position text within the quote box
-        line_height = 20  # Comfortable line spacing
-        text_start_y = quote_y + 10  # 10px padding from top of box
+        # Position and draw quote text
+        line_height = 18
+        text_start_y = quote_y + 15
         
-        # Draw quote text with good visibility
         for i, line in enumerate(quote_lines):
             y = text_start_y + (i * line_height)
-            x = quote_x + 10  # 10px padding from left
+            x = quote_x + 10
             
-            # Simple shadow for readability
+            # Ensure we don't go beyond screen bounds
+            if y + line_height > 400:
+                break
+                
+            # Text shadow for readability
             draw.text((x + 1, y + 1), line, fill=(0, 0, 0), font=font_quote)
-            # Main quote text in white
+            # Main text
             draw.text((x, y), line, fill=(255, 255, 255), font=font_quote)
         
-        # Draw author name
+        # Draw author
         author_text = f"— {quote_data['author']}"
-        author_y = text_start_y + len(quote_lines) * line_height + 8  # 8px gap after quote
-        author_x = quote_x + 10
+        author_y = text_start_y + len(quote_lines) * line_height + 8
         
-        # Check if author fits, if not truncate
-        bbox = draw.textbbox((0, 0), author_text, font=font_author)
-        text_width = bbox[2] - bbox[0]
-        if text_width > max_width:
-            # Truncate author name if too long
-            author_name = quote_data['author']
-            if len(author_name) > 20:
-                author_name = author_name[:17] + "..."
-            author_text = f"— {author_name}"
+        # Ensure author fits on screen
+        if author_y + 15 <= 400:  # Check if author text fits
+            # Truncate author if too long
+            max_author_width = max_text_width - 20
+            if self.get_text_width(author_text, font_author) > max_author_width:
+                author_name = quote_data['author']
+                if len(author_name) > 25:
+                    author_name = author_name[:22] + "..."
+                author_text = f"— {author_name}"
+            
+            author_x = quote_x + 10
+            draw.text((author_x + 1, author_y + 1), author_text, fill=(0, 0, 0), font=font_author)
+            draw.text((author_x, author_y), author_text, fill=(220, 220, 220), font=font_author)
         
-        # Author shadow and main text
-        draw.text((author_x + 1, author_y + 1), author_text, fill=(0, 0, 0), font=font_author)
-        draw.text((author_x, author_y), author_text, fill=(220, 220, 220), font=font_author)
+        # Add artwork attribution in top-right corner
+        attribution = f"{artwork_data.get('title', 'Untitled')}"
+        artist = artwork_data.get('artist', 'Unknown Artist')
+        if len(attribution) > 30:
+            attribution = attribution[:27] + "..."
+        if len(artist) > 25:
+            artist = artist[:22] + "..."
+            
+        # Small attribution area in top-right
+        attr_bg_width = 200
+        attr_bg_height = 45
+        attr_x = 640 - attr_bg_width - 10
+        attr_y = 10
+        
+        # Subtle background for attribution
+        attr_overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
+        attr_draw = ImageDraw.Draw(attr_overlay)
+        attr_draw.rectangle([attr_x, attr_y, attr_x + attr_bg_width, attr_y + attr_bg_height], 
+                           fill=(0, 0, 0, 120))
+        
+        display_image = Image.alpha_composite(display_image.convert('RGBA'), attr_overlay)
+        display_image = display_image.convert('RGB')
+        
+        # Draw attribution text
+        draw = ImageDraw.Draw(display_image)
+        draw.text((attr_x + 6, attr_y + 5), attribution, fill=(255, 255, 255), font=font_artwork)
+        draw.text((attr_x + 6, attr_y + 20), artist, fill=(200, 200, 200), font=font_artwork)
+        draw.text((attr_x + 6, attr_y + 32), artwork_data.get('source', ''), fill=(160, 160, 160), font=font_artwork)
         
         return display_image
     
-    def wrap_text_for_quote(self, text, font, max_width, max_lines=4):
-        """Wrap text for quote display with proper line breaks."""
+    def wrap_text_smart(self, text, font, max_width, max_lines=4):
+        """Smart text wrapping that handles punctuation and doesn't cut words awkwardly."""
         words = text.split()
         lines = []
         current_line = []
         
-        # Create temporary image for text measurement
-        temp_img = Image.new('RGB', (1, 1))
-        temp_draw = ImageDraw.Draw(temp_img)
-        
         for word in words:
             test_line = ' '.join(current_line + [word])
-            bbox = temp_draw.textbbox((0, 0), test_line, font=font)
-            text_width = bbox[2] - bbox[0]
-            
-            if text_width <= max_width:
+            if self.get_text_width(test_line, font) <= max_width:
                 current_line.append(word)
             else:
                 if current_line:
@@ -533,6 +576,7 @@ class ArtworkScreen(BaseScreen):
                         break
                     current_line = [word]
                 else:
+                    # Word too long, try to break it
                     lines.append(word)
                     if len(lines) >= max_lines:
                         break
@@ -540,156 +584,60 @@ class ArtworkScreen(BaseScreen):
         if current_line and len(lines) < max_lines:
             lines.append(' '.join(current_line))
         
+        # If we have more text than fits, add ellipsis to last line
+        if len(lines) == max_lines and len(words) > sum(len(line.split()) for line in lines):
+            last_line = lines[-1]
+            while self.get_text_width(last_line + "...", font) > max_width and len(last_line) > 0:
+                words_in_line = last_line.split()
+                if len(words_in_line) > 1:
+                    words_in_line = words_in_line[:-1]
+                    last_line = ' '.join(words_in_line)
+                else:
+                    last_line = last_line[:-1]
+            lines[-1] = last_line + "..."
+        
         return lines[:max_lines]
     
-    def create_fallback_artwork(self, artwork_data):
-        """Create a beautiful fallback artwork when images can't be loaded."""
-        # Create a gradient background
-        image = Image.new("RGB", (640, 400), (50, 50, 70))
-        draw = ImageDraw.Draw(image)
-        
-        # Create gradient background based on artwork theme
-        base_color = artwork_data.get('color', '#6A5ACD')
+    def get_text_width(self, text, font):
+        """Get the width of text in pixels."""
         try:
-            # Convert hex to RGB
-            base_color = base_color.lstrip('#')
-            r, g, b = tuple(int(base_color[i:i+2], 16) for i in (0, 2, 4))
+            temp_img = Image.new('RGB', (1, 1))
+            temp_draw = ImageDraw.Draw(temp_img)
+            bbox = temp_draw.textbbox((0, 0), text, font=font)
+            return bbox[2] - bbox[0]
         except:
-            r, g, b = 106, 90, 205  # Default purple
-        
-        # Create multi-layer gradient for depth
-        for y in range(400):
-            factor = y / 400
-            # Layer 1: Base gradient
-            new_r = int(r * (1 - factor * 0.6))
-            new_g = int(g * (1 - factor * 0.6))
-            new_b = int(b * (1 - factor * 0.6))
-            
-            # Layer 2: Add some warm tones at the bottom
-            if y > 200:
-                warm_factor = (y - 200) / 200
-                new_r = min(255, int(new_r + warm_factor * 30))
-                new_g = min(255, int(new_g + warm_factor * 15))
-            
-            color = (new_r, new_g, new_b)
-            draw.line([(0, y), (640, y)], fill=color)
-        
-        # Add artistic geometric patterns based on artwork style
-        title = artwork_data.get('title', '').lower()
-        
-        if 'abstract' in title or 'modern' in title:
-            # Abstract geometric shapes
-            for i in range(8):
-                x = random.randint(50, 590)
-                y = random.randint(50, 350)
-                size = random.randint(20, 100)
-                alpha = random.randint(20, 60)
-                
-                overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
-                overlay_draw = ImageDraw.Draw(overlay)
-                
-                # Mix of circles and rectangles
-                if i % 2 == 0:
-                    overlay_draw.ellipse([x-size, y-size, x+size, y+size], 
-                                       fill=(255, 255, 255, alpha))
-                else:
-                    overlay_draw.rectangle([x-size, y-size, x+size, y+size], 
-                                         fill=(255, 255, 255, alpha))
-                
-                image = Image.alpha_composite(image.convert('RGBA'), overlay).convert('RGB')
-        
-        elif 'landscape' in title or 'nature' in title:
-            # Nature-inspired flowing lines
-            for i in range(3):
-                y_base = random.randint(100, 300)
-                overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
-                overlay_draw = ImageDraw.Draw(overlay)
-                
-                # Draw flowing wave-like lines
-                points = []
-                for x in range(0, 640, 20):
-                    y_offset = int(30 * random.uniform(-1, 1))
-                    points.append((x, y_base + y_offset))
-                
-                for j in range(len(points) - 1):
-                    overlay_draw.line([points[j], points[j+1]], fill=(255, 255, 255, 40), width=3)
-                
-                image = Image.alpha_composite(image.convert('RGBA'), overlay).convert('RGB')
-        
-        else:
-            # Classic artistic elements - gentle circles and lines
-            for i in range(5):
-                x = random.randint(100, 540)
-                y = random.randint(100, 300)
-                size = random.randint(40, 120)
-                alpha = random.randint(15, 45)
-                
-                overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
-                overlay_draw = ImageDraw.Draw(overlay)
-                
-                # Gentle circles with soft edges
-                overlay_draw.ellipse([x-size, y-size, x+size, y+size], 
-                                   fill=(255, 255, 255, alpha))
-                
-                image = Image.alpha_composite(image.convert('RGBA'), overlay).convert('RGB')
-        
-        # Add title text if available
-        title = artwork_data.get('title', 'Generated Art')
-        artist = artwork_data.get('artist', 'AI Assistant')
-        
-        # Use font manager for better fonts
-        font_title = font_manager.get_font('title', 32)
-        font_artist = font_manager.get_font('regular', 20)
-        
-        # Add semi-transparent overlay for text
-        text_overlay = Image.new('RGBA', (640, 400), (0, 0, 0, 0))
-        text_draw = ImageDraw.Draw(text_overlay)
-        
-        # Background for text
-        text_draw.rectangle([(50, 150), (590, 250)], fill=(0, 0, 0, 100))
-        
-        # Title text
-        bbox = text_draw.textbbox((0, 0), title, font=font_title)
-        text_width = bbox[2] - bbox[0]
-        x = (640 - text_width) // 2
-        text_draw.text((x, 170), title, fill=(255, 255, 255, 255), font=font_title)
-        
-        # Artist text
-        bbox = text_draw.textbbox((0, 0), artist, font=font_artist)
-        text_width = bbox[2] - bbox[0]
-        x = (640 - text_width) // 2
-        text_draw.text((x, 210), artist, fill=(200, 200, 200, 255), font=font_artist)
-        
-        # Composite text overlay
-        image = Image.alpha_composite(image.convert('RGBA'), text_overlay).convert('RGB')
-        
-        return image
+            return len(text) * 8  # Rough fallback
     
     
     def display_error_message(self, title, message):
         """Display an error message on the screen."""
-        image = Image.new("RGB", (640, 400), (60, 60, 80))
+        image = Image.new("RGB", (640, 400), (40, 40, 60))
         draw = ImageDraw.Draw(image)
         
         try:
-            font = font_manager.get_font('regular', 16)
+            font_title = font_manager.get_font('title', 24)
+            font_message = font_manager.get_font('regular', 16)
         except:
-            font = None
-            
-        if font:
-            # Draw error title
-            bbox = draw.textbbox((0, 0), title, font=font)
-            text_width = bbox[2] - bbox[0]
-            x = (640 - text_width) // 2
-            draw.text((x, 180), title, fill=(255, 100, 100), font=font)
-            
-            # Draw error message (truncated)
-            if len(message) > 60:
-                message = message[:57] + "..."
-            bbox = draw.textbbox((0, 0), message, font=font)
-            text_width = bbox[2] - bbox[0]
-            x = (640 - text_width) // 2
-            draw.text((x, 220), message, fill=(200, 200, 200), font=font)
+            font_title = ImageFont.load_default()
+            font_message = ImageFont.load_default()
         
+        # Draw error title
+        title_bbox = draw.textbbox((0, 0), title, font=font_title)
+        title_width = title_bbox[2] - title_bbox[0]
+        title_x = (640 - title_width) // 2
+        draw.text((title_x, 160), title, fill=(255, 120, 120), font=font_title)
+        
+        # Draw error message (with wrapping)
+        message_lines = self.wrap_text_smart(message, font_message, 580, max_lines=3)
+        line_height = 20
+        start_y = 200
+        
+        for i, line in enumerate(message_lines):
+            line_bbox = draw.textbbox((0, 0), line, font=font_message)
+            line_width = line_bbox[2] - line_bbox[0]
+            line_x = (640 - line_width) // 2
+            draw.text((line_x, start_y + i * line_height), line, fill=(200, 200, 200), font=font_message)
+        
+        # Display the error
         self.inky.set_image(image)
         self.inky.show()

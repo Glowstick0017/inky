@@ -764,6 +764,10 @@ class WeatherScreen(BaseScreen):
                     low_x = card_x + card_width - text_width - 8  # Right-aligned within card
                     draw.text((low_x, card_y + 8), low_text, fill=(120, 120, 120), font=font_small)
             
+            # Ensure final image is in correct format for e-ink display
+            if display_image.mode != 'RGB':
+                display_image = display_image.convert('RGB')
+            
             # Display the weather
             self.inky.set_image(display_image)
             self.inky.show()
@@ -796,6 +800,10 @@ class WeatherScreen(BaseScreen):
             text_width = bbox[2] - bbox[0]
             x = (640 - text_width) // 2
             draw.text((x, 210), message, fill=(200, 200, 200), font=font)
+        
+        # Ensure final image is in correct format for e-ink display
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
         
         self.inky.set_image(image)
         self.inky.show()

@@ -484,6 +484,10 @@ class StarmapScreen(BaseScreen):
                 draw.text((16, info_y + 41), location_text, fill=(0, 0, 0), font=font_small)
                 draw.text((15, info_y + 40), location_text, fill=(150, 255, 150), font=font_small)
             
+            # Ensure final image is in correct format for e-ink display
+            if display_image.mode != 'RGB':
+                display_image = display_image.convert('RGB')
+            
             # Display the star chart
             self.inky.set_image(display_image)
             self.inky.show()
@@ -520,6 +524,10 @@ class StarmapScreen(BaseScreen):
             text_width = bbox[2] - bbox[0]
             x = (640 - text_width) // 2
             draw.text((x, 220), message, fill=(200, 200, 200), font=font_text)
+        
+        # Ensure final image is in correct format for e-ink display
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
         
         self.inky.set_image(image)
         self.inky.show()

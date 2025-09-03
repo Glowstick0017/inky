@@ -492,6 +492,11 @@ class SystemScreen(BaseScreen):
                 update_x = 620 - update_width
                 draw.text((update_x, y_info + 85), updated_text, fill=(120, 140, 180), font=font_tiny)
             
+            # Ensure final image is in correct format for e-ink display
+            # Convert to RGB if not already, then let inky handle the final conversion
+            if display_image.mode != 'RGB':
+                display_image = display_image.convert('RGB')
+            
             # Display the enhanced system dashboard
             self.inky.set_image(display_image)
             self.inky.show()
@@ -565,6 +570,10 @@ class SystemScreen(BaseScreen):
             text_width = bbox[2] - bbox[0]
             x = (640 - text_width) // 2
             draw.text((x, 235), help_text, fill=(200, 200, 255), font=font_small)
+        
+        # Ensure final image is in correct format for e-ink display
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
         
         self.inky.set_image(image)
         self.inky.show()
