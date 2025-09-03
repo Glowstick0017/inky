@@ -15,7 +15,7 @@ LOCATION_LONGITUDE = -112.0740 # Your location longitude
 LOCATION_CITY = "Phoenix, AZ"  # Your city name
 
 # Update Intervals (in seconds)
-ARTWORK_UPDATE_INTERVAL = 300    # 5 minutes - Artwork with quotes
+ARTWORK_UPDATE_INTERVAL = 1800    # 30 minutes - Artwork with quotes
 WEATHER_UPDATE_INTERVAL = 900    # 15 minutes - Weather forecast
 STARMAP_UPDATE_INTERVAL = 3600   # 1 hour - Star chart
 SYSTEM_UPDATE_INTERVAL = 300     # 5 minutes - System monitoring
